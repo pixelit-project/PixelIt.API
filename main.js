@@ -83,7 +83,7 @@ app.get("/api/GetUserMapData", async (req, res) => {
     const rawUrl = tools.getRawURLFromRequest(req);
     const userMapData = await cache.getOrSet('GetUserMapData', () => { return repo.getUserMapData() }, 30) ?? [];
 
-    log.info("GetUserMapData: {count} User successfully delivered", { count: bmps.length, sourceIP: sourceIP, rawUrl: rawUrl, useragent: req.useragent });
+    log.info("GetUserMapData: {count} User successfully delivered", { count: userMapData.length, sourceIP: sourceIP, rawUrl: rawUrl, useragent: req.useragent });
     res.send(userMapData);
 });
 
