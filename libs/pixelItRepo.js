@@ -1,10 +1,11 @@
-const tools = require('./tools');
+const tools = require('./tools')
 module.exports = (connection, log) => {
     return {
         getBMPByID: async (id) => {
-            let result;
+            let result
             try {
-                result = await connection.query(`select 
+                result = await connection.query(
+                    `select 
                         a.id, 
                         a.datetime AS dateTime,
                         a.name,
@@ -19,19 +20,21 @@ module.exports = (connection, log) => {
                         join pixel_it_user b on (a.userid  = b.id)
                         left outer join pixel_it_hitcount c on (a.id = c.pixel_id) 
                         where
-                            a.id = ?`, id);
+                            a.id = ?`,
+                    id
+                )
 
-                result[0][0].animated = tools.mysqlToBool(result[0][0].animated);
+                result[0][0].animated = tools.mysqlToBool(result[0][0].animated)
 
-                return result[0][0];
+                return result[0][0]
             } catch (error) {
-                log.error("getBMPByID: {error}", { error: error });
-                return null;
+                log.error('getBMPByID: {error}', { error: error })
+                return null
             }
         },
 
         getBMPAll: async () => {
-            let result;
+            let result
             try {
                 result = await connection.query(`select 
                             a.id, 
@@ -46,21 +49,21 @@ module.exports = (connection, log) => {
                             IFNULL(c.hitcount,0) as hitCount
                         from pixel_it_bitmap a 
                         join pixel_it_user b on (a.userid  = b.id)
-                        left outer join pixel_it_hitcount c on (a.id = c.pixel_id)`);
+                        left outer join pixel_it_hitcount c on (a.id = c.pixel_id)`)
 
                 for (const bmp of result[0]) {
-                    bmp.animated = tools.mysqlToBool(bmp.animated);
+                    bmp.animated = tools.mysqlToBool(bmp.animated)
                 }
 
-                return result[0];
+                return result[0]
             } catch (error) {
-                log.error("getBMPAll: {error}", { error: error });
-                return null;
+                log.error('getBMPAll: {error}', { error: error })
+                return null
             }
         },
 
         getBMPNewst: async () => {
-            let result;
+            let result
             try {
                 result = await connection.query(`select 
                             a.id, 
@@ -77,44 +80,56 @@ module.exports = (connection, log) => {
                         join pixel_it_user b on (a.userid  = b.id)
                         left outer join pixel_it_hitcount c on (a.id = c.pixel_id) 
                         where
-                            a.id = (select max(id) from pixel_it_bitmap)`);
+                            a.id = (select max(id) from pixel_it_bitmap)`)
 
-                result[0][0].animated = tools.mysqlToBool(result[0][0].animated);
+                result[0][0].animated = tools.mysqlToBool(result[0][0].animated)
 
-                return result[0][0];
+                return result[0][0]
             } catch (error) {
-                log.error("getBMPNewst: {error}", { error: error });
-                return null;
+                log.error('getBMPNewst: {error}', { error: error })
+                return null
             }
         },
 
         saveStats: async (telemetry) => {
             try {
-                await connection.execute(`REPLACE INTO pixel_it_telemetry 
+                await connection.execute(
+                    `REPLACE INTO pixel_it_telemetry 
                     (uuid, version, type, matrix, sensors, geoip, last_change)
                 VALUES  
                     (?, ?, ?, ?, ?, ?, ?)`,
-                    [telemetry.uuid, telemetry.version, telemetry.type, telemetry.matrix, telemetry.sensors, telemetry.geoip, new Date()]);
+                    [
+                        telemetry.uuid,
+                        telemetry.version,
+                        telemetry.type,
+                        telemetry.matrix,
+                        telemetry.sensors,
+                        telemetry.geoip,
+                        new Date(),
+                    ]
+                )
             } catch (error) {
-                log.error("saveStats: {error}", { error: error });
+                log.error('saveStats: {error}', { error: error })
             }
         },
 
         getUserMapData: async () => {
-            let sqlResult;
-            const result = [];
+            let sqlResult
+            const result = []
             try {
-                sqlResult = await connection.query(`select JSON_EXTRACT(geoip, '$.ll') as coords from pixel_it_telemetry where  last_change >= CURRENT_DATE - INTERVAL 30 DAY`);
+                sqlResult = await connection.query(
+                    `select JSON_EXTRACT(geoip, '$.ll') as coords from pixel_it_telemetry where  last_change >= CURRENT_DATE - INTERVAL 30 DAY`
+                )
 
                 for (const x of sqlResult[0]) {
                     result.push(x.coords)
                 }
 
-                return result;
+                return result
             } catch (error) {
-                log.error("getUserMapData: {error}", { error: error });
-                return null;
+                log.error('getUserMapData: {error}', { error: error })
+                return null
             }
-        }
+        },
     }
-};
+}
