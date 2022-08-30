@@ -3,23 +3,13 @@ const useragent = require('express-useragent');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const helmet = require('helmet');
-const mysql = require("mysql2/promise");
 const log = require('./libs/logger');
 const tools = require('./libs/tools');
 const cache = require('./libs/cache');
+const gitRepo = require('./libs/gitRepo');
 const geoip = require('fast-geoip');
+const repo = require('./libs/pixelItRepo');
 
-const connection = mysql.createPool({
-    host: process.env.MYSQL_HOST,
-    user: process.env.MYSQL_USER,
-    password: process.env.MYSQL_PASSWORD,
-    database: process.env.MYSQL_DATABASE,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-});
-
-const repo = require("./libs/pixelItRepo")(connection, log);
 const port = process.env.PORT || 8080;
 
 // defining the Express app
@@ -32,62 +22,107 @@ app.use(bodyParser.json());
 // enabling CORS for all requests
 app.use(cors());
 
-app.get("/api/GetBMPByID/:id", async (req, res) => {
+app.get('/api/GetBMPByID/:id', async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
     const id = req.params.id;
-    const bmp = await cache.getOrSet(`GetBMPByID_${id}`, () => { return repo.getBMPByID(id) }, 0) ?? {};
+    const bmp = (await cache.getOrSet(`GetBMPByID_${id}`, () => { return repo.getBMPByID(id) }, 0)) ?? {};
 
-    log.info("GetBMPByID: BMP with ID {id} and name {name} successfully delivered", { id: bmp.id, name: bmp.name, sourceIP: sourceIP, rawUrl: rawUrl, useragent: req.useragent });
+    log.info('GetBMPByID: BMP with ID {id} and name {name} successfully delivered', { id: bmp.id, name: bmp.name, sourceIP, rawUrl, useragent: req.useragent, });
     res.send(bmp);
 });
 
-app.get("/api/GetBMPNewst", async (req, res) => {
+app.get('/api/GetBMPNewst', async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
-    const bmp = await cache.getOrSet('GetBMPNewst', () => { return repo.getBMPNewst() }, 30) ?? {};
+    const bmp = (await cache.getOrSet('GetBMPNewst', () => { return repo.getBMPNewst() }, 30)) ?? {};
 
     res.send(bmp);
 });
 
-app.get("/api/GetBMPAll", async (req, res) => {
+app.get('/api/GetBMPAll', async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
-    const bmps = await cache.getOrSet('GetBMPAll', () => { return repo.getBMPAll() }, 30) ?? [];
+    const bmps = (await cache.getOrSet('GetBMPAll', () => { return repo.getBMPAll() }, 30)) ?? [];
 
-    log.info("GetBMPAll: {count} BMPs successfully delivered", { count: bmps.length, sourceIP: sourceIP, rawUrl: rawUrl, useragent: req.useragent });
+    log.info('GetBMPAll: {count} BMPs successfully delivered', { count: bmps.length, sourceIP, rawUrl, useragent: req.useragent, });
     res.send(bmps);
 });
 
-app.post("/api/Telemetry", async (req, res) => {
+app.post('/api/Telemetry', async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
 
     if (!req.body) {
-        log.error("Telemetry: No body found", { sourceIP: sourceIP, rawUrl: rawUrl, useragent: req.useragent });
-        res.status(400).send("Not valid body");
+        log.error('Telemetry: No body found', { sourceIP, rawUrl, useragent: req.useragent, });
+        res.status(400).send('Not valid body');
         return;
     }
 
     (async () => {
-        req.body.geoip = await geoip.lookup(sourceIP)
-        log.info(`Telemetry: ${JSON.stringify(req.body)}`, { sourceIP: sourceIP, rawUrl: rawUrl, useragent: req.useragent });
+        req.body.geoip = await geoip.lookup(sourceIP);
+        log.info(`Telemetry: ${JSON.stringify(req.body)}`, { sourceIP, rawUrl, useragent: req.useragent, });
         repo.saveStats(req.body);
     })();
 
     res.sendStatus(200);
 });
 
-app.get("/api/GetUserMapData", async (req, res) => {
+app.get('/api/UserMapData', async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
-    const userMapData = await cache.getOrSet('GetUserMapData', () => { return repo.getUserMapData() }, 30) ?? [];
+    const userMapData = (await cache.getOrSet('UserMapData', () => { return repo.getUserMapData() }, 30)) ?? [];
 
-    log.info("GetUserMapData: {count} User successfully delivered", { count: userMapData.length, sourceIP: sourceIP, rawUrl: rawUrl, useragent: req.useragent });
+    log.info('UserMapData: {count} User successfully delivered', { count: userMapData.length, sourceIP, rawUrl, useragent: req.useragent, });
     res.send(userMapData);
+});
+
+app.get('/api/LastVersion', async (req, res) => {
+    const sourceIP = tools.getIPFromRequest(req);
+    const rawUrl = tools.getRawURLFromRequest(req);
+    const releases = (await cache.getOrSet('Releases', () => { return gitRepo.getGitReleases() }, 600)) ?? [];
+    let lastReleaseData = {};
+
+    if (releases.length > 0) {
+        lastReleaseData = releases[0];
+    }
+
+    for (const key of ['downloads', 'downloadURL', 'fwdownloads', 'releaseNoteArray', 'readmeLink', 'date']) {
+        delete lastReleaseData[key];
+    }
+
+    log.info('LastVersion: Version {version} successfully delivered', { version: lastReleaseData.version, sourceIP, rawUrl, useragent: req.useragent, });
+
+    res.send(lastReleaseData);
+});
+
+app.get('/api/LastRelease', async (req, res) => {
+    const sourceIP = tools.getIPFromRequest(req);
+    const rawUrl = tools.getRawURLFromRequest(req);
+    const releases = (await cache.getOrSet('Releases', () => { return gitRepo.getGitReleases() }, 600)) ?? [];
+    let lastReleaseData = {};
+
+    if (releases.length > 0) {
+        lastReleaseData = releases[0];
+    }
+
+    log.info('LastRelease: Version {version} successfully delivered', { version: lastReleaseData.version, sourceIP, rawUrl, useragent: req.useragent, });
+
+
+    res.send(lastReleaseData);
+});
+
+app.get('/api/Releases', async (req, res) => {
+    const sourceIP = tools.getIPFromRequest(req);
+    const rawUrl = tools.getRawURLFromRequest(req);
+    const releases = await cache.getOrSet('Releases', () => { return gitRepo.getGitReleases() }, 600) ?? [];
+
+    log.info('Releases: Versions {versions} successfully delivered', { versions: releases.map(value => value.version).join(', '), sourceIP, rawUrl, useragent: req.useragent, });
+
+    res.send(releases);
 });
 
 // starting the server
 app.listen(port, () => {
-    log.info('API listening on port {port}', { port: port });
+    log.info('API listening on port {port}', { port, });
 });
