@@ -1,10 +1,23 @@
 const axios = require('axios').default
 const log = require('./logger')
+let authConf = null;
 
 async function getGitReleases() {
+
+    if (process.env.GITHUB_TOKEN) {
+        authConf = { headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` } };
+    }
+
     const gitReleases = [];
     try {
-        const gitData = (await axios.get('https://api.github.com/repos/pixelit-project/PixelIt/releases')).data;
+        const res = await axios.get('https://api.github.com/repos/pixelit-project/PixelIt/releases', authConf);
+        const gitData = res.data;
+        log.info('GitAPIRateLimit: Limit: {rateLimitLimit}, Remaining: {rateLimitRemaining}, Used: {rateLimitUsed}, Reset at {rateLimitReset}', {
+            rateLimitLimit: res.headers['x-ratelimit-limit'],
+            rateLimitRemaining: res.headers['x-ratelimit-remaining'],
+            rateLimitUsed: res.headers['x-ratelimit-used'],
+            rateLimitReset: new Date(res.headers['x-ratelimit-reset'] * 1000).toLocaleString()
+        });
 
         for (let i = 0; i < 4; i++) {
             const data = {

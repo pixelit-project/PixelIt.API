@@ -29,6 +29,7 @@ pixelit_api:
     MYSQL_DATABASE: database
     MYSQL_USER: user
     MYSQL_PASSWORD: password
+    GITHUB_TOKEN: token
     SEQ_SERVER: http://seqserver:5341
     SEQ_APIKEY: xxxxxxxxxxxx
 ```
