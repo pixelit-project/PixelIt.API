@@ -40,6 +40,6 @@ Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
 
-### **WORK IN PROGRESS**
+### 1.0.0 (2022-09-05)
 
 - (o0shojo0o) inital commit

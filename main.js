@@ -26,6 +26,13 @@ app.get('/api/GetBMPByID/:id', async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
     const id = req.params.id;
+
+    if (typeof id != 'number') {
+        log.warn('GetBMPByID: {id} is not a valid ID!', { id, sourceIP, rawUrl, useragent: req.useragent, });
+        res.status(400).send('Not valid ID');
+        return;
+    }
+
     const bmp = (await cache.getOrSet(`GetBMPByID_${id}`, () => { return repo.getBMPByID(id) }, 0)) ?? {};
 
     log.info('GetBMPByID: BMP with ID {id} and name {name} successfully delivered', { id: bmp.id, name: bmp.name, sourceIP, rawUrl, useragent: req.useragent, });
