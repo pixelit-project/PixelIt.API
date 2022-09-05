@@ -27,7 +27,7 @@ app.get('/api/GetBMPByID/:id', async (req, res) => {
     const rawUrl = tools.getRawURLFromRequest(req);
     const id = req.params.id;
 
-    if (typeof id != 'number') {
+    if (isNumeric(id) == false) {
         log.warn('GetBMPByID: {id} is not a valid ID!', { id, sourceIP, rawUrl, useragent: req.useragent, });
         res.status(400).send('Not valid ID');
         return;

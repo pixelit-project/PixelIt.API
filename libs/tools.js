@@ -14,8 +14,13 @@ function mysqlToBool(value) {
     return value == 1
 }
 
+function isNumeric(value) {
+    return /^\d+$/.test(value);
+}
+
 module.exports = {
     getIPFromRequest,
     getRawURLFromRequest,
     mysqlToBool,
+    isNumeric,
 }
