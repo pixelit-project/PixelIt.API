@@ -1,4 +1,4 @@
-# PixelIt.api
+# PixelIt.API
 
 This is the API service for the [PixelIt](https://github.com/pixelit-project/PixelIt) project, this provides the bitmaps for the Pixelit.
 
