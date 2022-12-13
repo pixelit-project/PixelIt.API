@@ -11,7 +11,8 @@ async function getGitReleases() {
     const gitReleases = [];
     try {
         const res = await axios.get('https://api.github.com/repos/pixelit-project/PixelIt/releases', authConf);
-        const gitData = res.data;
+        // No prereleases
+        const gitData = res.data.filter(x => x.prerelease == false);
         log.info('GitAPIRateLimit: Limit: {rateLimitLimit}, Remaining: {rateLimitRemaining}, Used: {rateLimitUsed}, Reset at {rateLimitReset}', {
             rateLimitLimit: res.headers['x-ratelimit-limit'],
             rateLimitRemaining: res.headers['x-ratelimit-remaining'],

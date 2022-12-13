@@ -40,6 +40,10 @@ Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
 
+### 1.1.0 (2022-12-13)
+
+- (o0shojo0o) no prereleases for releases statistics, information, etc. not considered.
+
 ### 1.0.1 (2022-09-05)
 
 - (o0shojo0o) fix id check
