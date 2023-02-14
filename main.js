@@ -1,5 +1,6 @@
 const express = require('express');
 const useragent = require('express-useragent');
+const rateLimit = require('express-rate-limit')
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -21,6 +22,33 @@ app.use(helmet());
 app.use(bodyParser.json());
 // enabling CORS for all requests
 app.use(cors());
+
+const apiLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000, // 5 minutes
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    onLimitReached: (req, response, next, options) => {
+        const sourceIP = tools.getIPFromRequest(req);
+        const rawUrl = tools.getRawURLFromRequest(req);
+        log.warn('Global API RateLimit reached from: {sourceIP}, rawUrl: {rawUrl}', { sourceIP, rawUrl, useragent: req.useragent, });
+    }
+
+});
+
+const telemetryLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    onLimitReached: (req, response, next, options) => {
+        const sourceIP = tools.getIPFromRequest(req);
+        const rawUrl = tools.getRawURLFromRequest(req);
+        log.warn('Telemetry API RateLimit reached from: {sourceIP}, rawUrl: {rawUrl}', { sourceIP, rawUrl, useragent: req.useragent, });
+    }
+});
+
+app.use('/api/', apiLimiter);
 
 app.get('/api/GetBMPByID/:id', async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
@@ -56,7 +84,7 @@ app.get('/api/GetBMPAll', async (req, res) => {
     res.send(bmps);
 });
 
-app.post('/api/Telemetry', async (req, res) => {
+app.post('/api/Telemetry', telemetryLimiter, async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
 
