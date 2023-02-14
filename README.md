@@ -40,6 +40,10 @@ Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
 
+### 1.1.1 (2023-02-14)
+
+- (o0shojo0o) added rate limits
+
 ### 1.1.0 (2022-12-13)
 
 - (o0shojo0o) no prereleases for releases statistics, information, etc. not considered.
