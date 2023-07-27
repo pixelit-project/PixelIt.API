@@ -47,6 +47,10 @@ Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
 
+### 1.2.1 (2023-07-27)
+
+- (o0shojo0o) fix rate limit key
+
 ### 1.2.0 (2023-07-27)
 
 - (o0shojo0o) added environment variable `API_GLOBAL_LIMIT_WINDOW_MS`
