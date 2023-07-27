@@ -1,7 +1,6 @@
 require('dotenv').config()
 const express = require('express');
 const useragent = require('express-useragent');
-const rateLimit = require('express-rate-limit')
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -11,6 +10,7 @@ const cache = require('./libs/cache');
 const gitRepo = require('./libs/gitRepo');
 const geoip = require('fast-geoip');
 const repo = require('./libs/pixelItRepo');
+const { apiLimiter, telemetryLimiter } = require('./libs/rateLimit');
 
 const port = process.env.PORT || 8080;
 
@@ -23,35 +23,6 @@ app.use(helmet());
 app.use(bodyParser.json());
 // enabling CORS for all requests
 app.use(cors());
-
-app.set('trust proxy', 1)
-
-const apiLimiter = rateLimit({
-    windowMs: Number(process.env.API_GLOBAL_LIMIT_WINDOW_MS) || 5 * 60 * 1000, // 5 minutes
-    max: Number(process.env.API_GLOBAL_LIMIT_MAX) || 100,
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req, response) => tools.getIPFromRequest(req),
-    onLimitReached: (req, response, next, options) => {
-        const sourceIP = tools.getIPFromRequest(req);
-        const rawUrl = tools.getRawURLFromRequest(req);
-        log.warn('Global API RateLimit reached from: {sourceIP}, rawUrl: {rawUrl}', { sourceIP, rawUrl, useragent: req.useragent, });
-    }
-
-});
-
-const telemetryLimiter = rateLimit({
-    windowMs: Number(process.env.API_TELEMETRY_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-    max: Number(process.env.API_TELEMETRY_LIMIT_MAX) || 10,
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req, response) => tools.getIPFromRequest(req),
-    onLimitReached: (req, response, next, options) => {
-        const sourceIP = tools.getIPFromRequest(req);
-        const rawUrl = tools.getRawURLFromRequest(req);
-        log.warn('Telemetry API RateLimit reached from: {sourceIP}, rawUrl: {rawUrl}', { sourceIP, rawUrl, useragent: req.useragent, });
-    }
-});
 
 app.use('/api/', apiLimiter);
 
