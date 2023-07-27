@@ -34,6 +34,9 @@ function prepareLogForConsole(message, properties, dateTime) {
         if (properties.useragent) {
             extendedInformation += `, UserAgent: ${properties.useragent.browser}`
         }
+        if (properties.rateLimit) {
+            extendedInformation += `, RateLimit: ${properties.rateLimit.current} of ${properties.rateLimit.limit} (${properties.rateLimit.remaining}) reset in ${(new Date(properties.rateLimit.resetTime).getTime() - Date.now()) / 1000}s`
+        }
         extendedInformation += ']'
     }
 
@@ -42,12 +45,7 @@ function prepareLogForConsole(message, properties, dateTime) {
             message = message.replace(`{${key}}`, properties[key])
         }
     }
-    return `[${dateTime
-        .toISOString()
-        .slice(
-            0,
-            10
-        )}T${dateTime.toLocaleTimeString()}]${extendedInformation} ${message}`
+    return `[${dateTime.toISOString().slice(0, 10)}T${dateTime.toLocaleTimeString()}]${extendedInformation} ${message}`
 }
 
 module.exports = {

@@ -2,6 +2,9 @@
 
 This is the API service for the [PixelIt](https://github.com/pixelit-project/PixelIt) project, this provides the bitmaps for the Pixelit.
 
+[![CodeQL](https://github.com/pixelit-project/PixelIt.API/actions/workflows/codeql.yml/badge.svg)](https://github.com/pixelit-project/PixelIt.API/actions/workflows/codeql.yml)
+
+_____
 <a href="https://t.me/pixelitdisplay">
     <img src="https://img.shields.io/endpoint?label=Telegram&style=for-the-badge&url=https%3A%2F%2Frunkit.io%2Fdamiankrawczyk%2Ftelegram-badge%2Fbranches%2Fmaster%3Furl%3Dhttps%3A%2F%2Ft.me%2Fpixelitdisplay"/>
 </a> 
@@ -30,6 +33,10 @@ pixelit_api:
     MYSQL_USER: user
     MYSQL_PASSWORD: password
     GITHUB_TOKEN: token
+    API_GLOBAL_LIMIT_WINDOW_MS: 300000
+    API_GLOBAL_LIMIT_MAX: 100
+    API_TELEMETRY_LIMIT_WINDOW_MS: 900000
+    API_TELEMETRY_LIMIT_MAX: 10
     SEQ_SERVER: http://seqserver:5341
     SEQ_APIKEY: xxxxxxxxxxxx
 ```
@@ -39,6 +46,16 @@ pixelit_api:
 Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
+
+### 1.2.0 (2023-07-27)
+
+- (o0shojo0o) added environment variable `API_GLOBAL_LIMIT_WINDOW_MS`
+- (o0shojo0o) added environment variable `API_GLOBAL_LIMIT_MAX`
+- (o0shojo0o) added environment variable `API_TELEMETRY_LIMIT_WINDOW_MS`
+- (o0shojo0o) added environment variable `API_TELEMETRY_LIMIT_MAX`
+- (o0shojo0o) added environment variable `API_TELEMETRY_LIMIT_MAX`
+- (o0shojo0o) enrich log with rate limit data
+- (o0shojo0o) added .env file support 
 
 ### 1.1.1 (2023-02-14)
 
