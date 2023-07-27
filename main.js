@@ -24,11 +24,14 @@ app.use(bodyParser.json());
 // enabling CORS for all requests
 app.use(cors());
 
+app.set('trust proxy', 1)
+
 const apiLimiter = rateLimit({
     windowMs: Number(process.env.API_GLOBAL_LIMIT_WINDOW_MS) || 5 * 60 * 1000, // 5 minutes
     max: Number(process.env.API_GLOBAL_LIMIT_MAX) || 100,
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: (req, response) => tools.getIPFromRequest(req),
     onLimitReached: (req, response, next, options) => {
         const sourceIP = tools.getIPFromRequest(req);
         const rawUrl = tools.getRawURLFromRequest(req);
@@ -42,6 +45,7 @@ const telemetryLimiter = rateLimit({
     max: Number(process.env.API_TELEMETRY_LIMIT_MAX) || 10,
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: (req, response) => tools.getIPFromRequest(req),
     onLimitReached: (req, response, next, options) => {
         const sourceIP = tools.getIPFromRequest(req);
         const rawUrl = tools.getRawURLFromRequest(req);
