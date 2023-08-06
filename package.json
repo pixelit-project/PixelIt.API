@@ -27,7 +27,7 @@
     "express-useragent": "^1.0.15",
     "fast-geoip": "^1.1.88",
     "helmet": "^7.0.0",
-    "mysql2": "^3.5.2",
+    "mysql2": "^3.6.0",
     "node-cache": "^5.1.2",
     "seq-logging": "^2.1.1"
   },
