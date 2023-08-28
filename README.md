@@ -11,8 +11,8 @@ _____
 <a href="https://github.com/pixelit-project/PixelIt/discussions">
     <img src="https://img.shields.io/github/discussions/pixelit-project/PixelIt?&logo=github&label=GitHub%20Discussions&style=for-the-badge"/>
 </a> 
-<a href="https://discord.gg/JHE9P9zczW">
-    <img src="https://img.shields.io/discord/558849582377861122?logo=discord&label=Discrod&style=for-the-badge"/>
+<a href="https://discord.gg/WaNwCyge">
+    <img src="https://img.shields.io/discord/1145731525996970025?logo=discord&label=Discrod&style=for-the-badge"/>
 </a>
 
 ## Installation
