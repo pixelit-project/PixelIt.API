@@ -20,7 +20,8 @@ const apiLimiter = rateLimit({
     legacyHeaders: false,
     keyGenerator: (req, response) => tools.getIPFromRequest(req),
     skip: (req, response) => globelLimitExclude.includes(tools.getIPFromRequest(req)),
-    onLimitReached: (req, response, next, options) => {
+    handler: (req, response, next, options) => {
+        response.status(options.statusCode).send(options.message);
         const sourceIP = tools.getIPFromRequest(req);
         const rawUrl = tools.getRawURLFromRequest(req);
         log.warn('Global API RateLimit reached from: {sourceIP}, rawUrl: {rawUrl}', { sourceIP, rawUrl, useragent: req.useragent, });
@@ -34,7 +35,8 @@ const telemetryLimiter = rateLimit({
     legacyHeaders: false,
     keyGenerator: (req, response) => tools.getIPFromRequest(req),
     skip: (req, response) => telemetryLimitExclude.includes(tools.getIPFromRequest(req)),
-    onLimitReached: (req, response, next, options) => {
+    handler: (req, response, next, options) => {
+        response.status(options.statusCode).send(options.message);
         const sourceIP = tools.getIPFromRequest(req);
         const rawUrl = tools.getRawURLFromRequest(req);
         log.warn('Telemetry API RateLimit reached from: {sourceIP}, rawUrl: {rawUrl}', { sourceIP, rawUrl, useragent: req.useragent, });
@@ -42,13 +44,14 @@ const telemetryLimiter = rateLimit({
 });
 
 const saveBitmapLimiter = rateLimit({
-    windowMs: Number(process.env.API_TELEMETRY_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-    max: Number(process.env.API_TELEMETRY_LIMIT_MAX) || 10,
+    windowMs: Number(process.env.API_SAVEBITMAP_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+    max: Number(process.env.API_SAVEBITMAP_LIMIT_MAX) || 10,
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req, response) => tools.getIPFromRequest(req),
     skip: (req, response) => telemetryLimitExclude.includes(tools.getIPFromRequest(req)),
-    onLimitReached: (req, response, next, options) => {
+    handler: (req, response, next, options) => {
+        response.status(options.statusCode).send(options.message);
         const sourceIP = tools.getIPFromRequest(req);
         const rawUrl = tools.getRawURLFromRequest(req);
         log.warn('SaveBitmap API RateLimit reached from: {sourceIP}, rawUrl: {rawUrl}', { sourceIP, rawUrl, useragent: req.useragent, });
