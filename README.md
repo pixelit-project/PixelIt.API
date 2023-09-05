@@ -49,6 +49,10 @@ Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
 
+### 1.4.0 (2023-07-27)
+
+- (o0shojo0o) added new api endpoint `SaveBitmap`
+
 ### 1.3.0 (2023-07-27)
 
 - (o0shojo0o) added environment variable `API_GLOBAL_LIMIT_EXCLUDE`
