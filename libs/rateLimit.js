@@ -41,8 +41,23 @@ const telemetryLimiter = rateLimit({
     }
 });
 
+const saveBitmapLimiter = rateLimit({
+    windowMs: Number(process.env.API_TELEMETRY_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+    max: Number(process.env.API_TELEMETRY_LIMIT_MAX) || 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req, response) => tools.getIPFromRequest(req),
+    skip: (req, response) => telemetryLimitExclude.includes(tools.getIPFromRequest(req)),
+    onLimitReached: (req, response, next, options) => {
+        const sourceIP = tools.getIPFromRequest(req);
+        const rawUrl = tools.getRawURLFromRequest(req);
+        log.warn('SaveBitmap API RateLimit reached from: {sourceIP}, rawUrl: {rawUrl}', { sourceIP, rawUrl, useragent: req.useragent, });
+    }
+});
+
 module.exports = {
     apiLimiter,
     telemetryLimiter,
+    saveBitmapLimiter,
 }
 

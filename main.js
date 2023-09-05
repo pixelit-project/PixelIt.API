@@ -10,7 +10,7 @@ const cache = require('./libs/cache');
 const gitRepo = require('./libs/gitRepo');
 const geoip = require('fast-geoip');
 const repo = require('./libs/pixelItRepo');
-const { apiLimiter, telemetryLimiter } = require('./libs/rateLimit');
+const { apiLimiter, telemetryLimiter, saveBitmapLimiter } = require('./libs/rateLimit');
 
 const port = process.env.PORT || 8080;
 
@@ -131,6 +131,25 @@ app.get('/api/Releases', async (req, res) => {
     log.info('{apiPath}: Versions {versions} successfully delivered', { apiPath: 'Releases', versions: releases.map(value => value.version).join(', '), sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, });
 
     res.send(releases);
+});
+
+app.post('/api/SaveBitmap', saveBitmapLimiter, async (req, res) => {
+    const sourceIP = tools.getIPFromRequest(req);
+    const rawUrl = tools.getRawURLFromRequest(req);
+    const geoipData = await geoip.lookup(sourceIP);
+
+    if (!req.body) {
+        log.error('{apiPath}: No body found', { apiPath: 'SaveBitmap', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, geoip: geoipData, });
+        res.status(400).send('Not valid body');
+        return;
+    }
+
+    (async () => {
+        log.info(`{apiPath}: ${JSON.stringify(req.body)}`, { apiPath: 'SaveBitmap', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, geoip: geoipData, });
+        repo.saveBMP(req.body);
+    })();
+
+    res.sendStatus(200);
 });
 
 // starting the server

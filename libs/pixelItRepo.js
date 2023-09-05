@@ -43,7 +43,7 @@ async function getBMPByID(id) {
         log.error('getBMPByID: {error}', { error: error })
         return null
     }
-}
+};
 
 async function getBMPAll() {
     let result
@@ -72,7 +72,7 @@ async function getBMPAll() {
         log.error('getBMPAll: {error}', { error: error })
         return null
     }
-}
+};
 
 async function getBMPNewst() {
     let result
@@ -129,9 +129,7 @@ async function getUserMapData() {
     let sqlResult
     const result = []
     try {
-        sqlResult = await connection.query(
-            `select JSON_EXTRACT(geoip, '$.ll') as coords from pixel_it_telemetry where  last_change >= CURRENT_DATE - INTERVAL 30 DAY`
-        )
+        sqlResult = await connection.query(`select JSON_EXTRACT(geoip, '$.ll') as coords from pixel_it_telemetry where  last_change >= CURRENT_DATE - INTERVAL 30 DAY`)
 
         for (const x of sqlResult[0]) {
             result.push(x.coords)
@@ -142,9 +140,45 @@ async function getUserMapData() {
         log.error('getUserMapData: {error}', { error: error })
         return null
     }
+};
+
+async function saveBMP(bmp) {
+    try {
+        bmp.userID = await getUserIDByName(bmp.userName);
+
+        if (!bmp.userID) {
+            bmp.userID = await createNewUser(bmp.userName);
+        }
+
+        await connection.execute(
+            `insert into pixel_it_bitmap 
+                    (datetime, name, rgb565array, sizex, sizey, userid, animated) 
+                VALUES 
+                    (?, ?, ?, ?, ?, ?, ?)`,
+            [
+                new Date(),
+                bmp.name,
+                bmp.rgb565array,
+                bmp.sizeX,
+                bmp.sizeY,
+                bmp.userID,
+                bmp.animated
+            ]
+        )
+    } catch (error) {
+        log.error('saveBMP: {error}', { error: error, bmp })
+    }
+
+    async function getUserIDByName(userName) {
+        const result = await connection.query("Select id from pixel_it_user where name = ? and aktiv = true", [userName])
+        return result[0][0].id;
+    }
+
+    async function createNewUser(userName) {
+        await connection.execute("insert into pixel_it_user (name, aktiv) VALUES (?, ?)", [userName, true]);
+        return await getUserIDByName(userName);
+    }
 }
-
-
 
 module.exports = {
     getBMPByID,
@@ -152,4 +186,5 @@ module.exports = {
     getBMPNewst,
     getUserMapData,
     saveStats,
+    saveBMP,
 };
