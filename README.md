@@ -49,7 +49,7 @@ Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
 
-### 1.4.0 (2023-07-27)
+### 1.4.0 (2023-09-05)
 
 - (o0shojo0o) added new api endpoint `SaveBitmap`
 
