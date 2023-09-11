@@ -51,6 +51,10 @@ Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
 
+### 1.4.2 (2023-09-05)
+
+- (o0shojo0o) fix endpoint `SaveBitmap`
+
 ### 1.4.1 (2023-09-05)
 
 - (o0shojo0o) small fixes
