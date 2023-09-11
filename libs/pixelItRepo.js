@@ -171,7 +171,8 @@ async function saveBMP(bmp) {
 
     async function getUserIDByName(userName) {
         const result = await connection.query("Select id from pixel_it_user where name = ? and aktiv = true", [userName])
-        return result[0][0].id;
+        console.log(JSON.stringify(result))
+        return result[0][0]?.id;
     }
 
     async function createNewUser(userName) {
