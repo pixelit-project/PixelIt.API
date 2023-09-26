@@ -12,6 +12,11 @@ if (process.env.API_TELEMETRY_LIMIT_EXCLUDE) {
     telemetryLimitExclude = process.env.API_TELEMETRY_LIMIT_EXCLUDE.split(',').map(x => x.trim());
 }
 
+let saveBitmapLimitExclude = [];
+if (process.env.API_SAVEBITMAP_LIMIT_EXCLUDE) {
+    saveBitmapLimitExclude = process.env.API_SAVEBITMAP_LIMIT_EXCLUDE.split(',').map(x => x.trim());
+}
+
 
 const apiLimiter = rateLimit({
     windowMs: Number(process.env.API_GLOBAL_LIMIT_WINDOW_MS) || 5 * 60 * 1000,
@@ -49,7 +54,7 @@ const saveBitmapLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req, response) => tools.getIPFromRequest(req),
-    skip: (req, response) => telemetryLimitExclude.includes(tools.getIPFromRequest(req)),
+    skip: (req, response) => saveBitmapLimitExclude.includes(tools.getIPFromRequest(req)),
     handler: (req, response, next, options) => {
         response.status(options.statusCode).send(options.message);
         const sourceIP = tools.getIPFromRequest(req);

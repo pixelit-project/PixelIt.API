@@ -41,6 +41,7 @@ pixelit_api:
     API_SAVEBITMAP_LIMIT_MAX: 10
     API_GLOBAL_LIMIT_EXCLUDE: "192.168.0.1, 192.168.2.1, 192.168.3.1, ::1"
     API_TELEMETRY_LIMIT_EXCLUDE: "192.168.0.1, 192.168.2.1, 192.168.3.1, ::1"
+    API_SAVEBITMAP_LIMIT_EXCLUDE: "192.168.0.1, 192.168.2.1, 192.168.3.1, ::1"
     SEQ_SERVER: http://seqserver:5341
     SEQ_APIKEY: xxxxxxxxxxxx
 ```
@@ -50,6 +51,11 @@ pixelit_api:
 Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
+
+
+### 1.5.0 (2023-09-26)
+
+- (o0shojo0o) added ENV param `API_SAVEBITMAP_LIMIT_EXCLUDE`
 
 ### 1.4.2 (2023-09-05)
 
