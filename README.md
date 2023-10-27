@@ -52,6 +52,9 @@ Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
 
+### 1.6.0 (2023-10-27)
+
+- (o0shojo0o) added `buildSection` for endpoint `Telemetry` 
 
 ### 1.5.0 (2023-09-26)
 

@@ -107,12 +107,13 @@ async function saveStats(telemetry) {
     try {
         await connection.execute(
             `REPLACE INTO pixel_it_telemetry 
-                    (uuid, version, type, matrix, sensors, geoip, last_change)
+                    (uuid, version, build_section, type, matrix, sensors, geoip, last_change)
                 VALUES  
-                    (?, ?, ?, ?, ?, ?, ?)`,
+                    (?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 telemetry.uuid,
                 telemetry.version,
+                telemetry.buildSection || '',
                 telemetry.type,
                 telemetry.matrix,
                 telemetry.sensors,
