@@ -88,6 +88,15 @@ app.get('/api/UserMapData', async (req, res) => {
     res.send(userMapData);
 });
 
+app.get('/api/Statistics', async (req, res) => {
+    const sourceIP = tools.getIPFromRequest(req);
+    const rawUrl = tools.getRawURLFromRequest(req);
+    const statistics = (await cache.getOrSet('Statistics', () => { return repo.getStatistics() }, 30)) ?? {};
+
+    log.info('{apiPath}: Statistics successfully delivered', { apiPath: 'Statistics', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, });
+    res.send(statistics);
+});
+
 app.get('/api/LastVersion', async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);

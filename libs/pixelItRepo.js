@@ -2,6 +2,8 @@
 const mysql = require('mysql2/promise');
 const tools = require('./tools')
 const log = require('./logger')
+const countries = require("i18n-iso-countries");
+countries.registerLocale(require("i18n-iso-countries/langs/en.json"));
 
 const connection = mysql.createPool({
     host: process.env.MYSQL_HOST,
@@ -126,23 +128,6 @@ async function saveStats(telemetry) {
     }
 };
 
-async function getUserMapData() {
-    let sqlResult
-    const result = []
-    try {
-        sqlResult = await connection.query(`select JSON_EXTRACT(geoip, '$.ll') as coords from pixel_it_telemetry where  last_change >= CURRENT_DATE - INTERVAL 30 DAY`)
-
-        for (const x of sqlResult[0]) {
-            result.push(x.coords)
-        }
-
-        return result
-    } catch (error) {
-        log.error('getUserMapData: {error}', { error: error })
-        return null
-    }
-};
-
 async function saveBMP(bmp) {
     try {
         bmp.userID = await getUserIDByName(bmp.userName);
@@ -182,11 +167,48 @@ async function saveBMP(bmp) {
     }
 }
 
+async function getUserMapData() {
+    let sqlResult
+    const result = [];
+    try {
+        sqlResult = await connection.query(`select JSON_EXTRACT(geoip, '$.ll') as coords from pixel_it_telemetry where  last_change >= CURRENT_DATE - INTERVAL 30 DAY`);
+
+        for (const x of sqlResult[0]) {
+            result.push(x.coords)
+        }
+
+        return result
+    } catch (error) {
+        log.error('getUserMapData: {error}', { error: error })
+        return null
+    }
+};
+
+
+async function getStatistics() {
+    const result = {};
+    try {
+        result.buildStats = (await connection.query(`SELECT DISTINCT(IF(build_section = '','No_Data',build_section)) AS build, COUNT(*) AS count FROM pixel_it_telemetry where last_change >= CURRENT_DATE - INTERVAL 30 DAY GROUP BY build_section`))[0];
+        result.versionStats = (await connection.query(`SELECT DISTINCT(version) AS version, COUNT(*) AS count FROM pixel_it_telemetry where last_change >= CURRENT_DATE - INTERVAL 30 DAY GROUP BY version`))[0];
+        result.countryStats = (await connection.query(`SELECT DISTINCT(JSON_EXTRACT(geoip, '$.country')) AS country, COUNT(*) AS count FROM pixel_it_telemetry where last_change >= CURRENT_DATE - INTERVAL 30 DAY GROUP BY JSON_EXTRACT(geoip, '$.country')`))[0];
+
+        for (const countryStat of result.countryStats) {
+            countryStat.country = countries.getName(countryStat.country, 'en', { select: 'official' });
+        }
+
+        return result
+    } catch (error) {
+        log.error('getUserMapData: {error}', { error: error })
+        return null
+    }
+};
+
 module.exports = {
     getBMPByID,
     getBMPAll,
     getBMPNewst,
-    getUserMapData,
     saveStats,
     saveBMP,
+    getUserMapData,
+    getStatistics,
 };

@@ -45,12 +45,18 @@ pixelit_api:
     SEQ_SERVER: http://seqserver:5341
     SEQ_APIKEY: xxxxxxxxxxxx
 ```
-
+<!--
+### **WORK IN PROGRESS**
+-->
 ## Develop
 
 Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
+
+### **WORK IN PROGRESS**
+
+- (o0shojo0o) added new api endpoint `Statistics`
 
 ### 1.6.0 (2023-10-27)
 
