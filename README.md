@@ -54,7 +54,7 @@ Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
 
-### **WORK IN PROGRESS**
+### 1.7.0 (2023-11-03)*
 
 - (o0shojo0o) added new api endpoint `Statistics`
 
