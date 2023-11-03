@@ -10,6 +10,12 @@ function getRawURLFromRequest(req) {
     return `${req.protocol}://${req.get('host')}${req.originalUrl}`
 }
 
+
+function getClientFromRequest(req) {
+    return req.headers.client || 'Not set'
+}
+
+
 function mysqlToBool(value) {
     return value == 1
 }
@@ -21,6 +27,7 @@ function isNumeric(value) {
 module.exports = {
     getIPFromRequest,
     getRawURLFromRequest,
+    getClientFromRequest,
     mysqlToBool,
     isNumeric,
 }

@@ -63,16 +63,17 @@ app.get('/api/GetBMPAll', async (req, res) => {
 app.post('/api/Telemetry', telemetryLimiter, async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
+    const client = tools.getClientFromRequest(req);
 
     if (!req.body) {
-        log.error('{apiPath}: No body found', { apiPath: 'Telemetry', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, });
+        log.error('{apiPath}: No body found', { apiPath: 'Telemetry', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, client, });
         res.status(400).send('Not valid body');
         return;
     }
 
     (async () => {
         req.body.geoip = await geoip.lookup(sourceIP);
-        log.info(`{apiPath}: ${JSON.stringify(req.body)}`, { apiPath: 'Telemetry', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, });
+        log.info(`{apiPath}: ${JSON.stringify(req.body)}`, { apiPath: 'Telemetry', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, client, });
         repo.saveStats(req.body);
     })();
 
@@ -146,15 +147,16 @@ app.post('/api/SaveBitmap', saveBitmapLimiter, async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
     const geoipData = await geoip.lookup(sourceIP);
+    const client = tools.getClientFromRequest(req);
 
     if (!req.body) {
-        log.error('{apiPath}: No body found', { apiPath: 'SaveBitmap', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, geoip: geoipData, });
+        log.error('{apiPath}: No body found', { apiPath: 'SaveBitmap', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, geoip: geoipData, client, });
         res.status(400).send('Not valid body');
         return;
     }
 
     (async () => {
-        log.info(`{apiPath}: ${JSON.stringify(req.body)}`, { apiPath: 'SaveBitmap', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, geoip: geoipData, });
+        log.info(`{apiPath}: ${JSON.stringify(req.body)}`, { apiPath: 'SaveBitmap', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, geoip: geoipData, client, });
         repo.saveBMP(req.body);
     })();
 
