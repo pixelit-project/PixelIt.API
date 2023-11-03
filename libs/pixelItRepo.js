@@ -188,17 +188,29 @@ async function getUserMapData() {
 async function getStatistics() {
     const result = {};
     try {
-        result.buildStats = (await connection.query(`SELECT DISTINCT(IF(build_section = '','No_Data',build_section)) AS build, COUNT(*) AS count FROM pixel_it_telemetry where last_change >= CURRENT_DATE - INTERVAL 30 DAY GROUP BY build_section`))[0];
-        result.versionStats = (await connection.query(`SELECT DISTINCT(version) AS version, COUNT(*) AS count FROM pixel_it_telemetry where last_change >= CURRENT_DATE - INTERVAL 30 DAY GROUP BY version`))[0];
-        result.countryStats = (await connection.query(`SELECT DISTINCT(JSON_EXTRACT(geoip, '$.country')) AS country, COUNT(*) AS count FROM pixel_it_telemetry where last_change >= CURRENT_DATE - INTERVAL 30 DAY GROUP BY JSON_EXTRACT(geoip, '$.country')`))[0];
+        result.buildStats = (await connection.query(`SELECT DISTINCT(IF(build_section = '','No_Data',build_section)) AS build, COUNT(*) AS count FROM pixel_it_telemetry where last_change >= CURRENT_DATE - INTERVAL 30 DAY GROUP BY build_section ORDER BY build`))[0];
+        result.versionStats = (await connection.query(`SELECT DISTINCT(version) AS version, COUNT(*) AS count FROM pixel_it_telemetry where last_change >= CURRENT_DATE - INTERVAL 30 DAY GROUP BY version ORDER BY VERSION desc`))[0];
+        result.matrixStats = (await connection.query(`SELECT DISTINCT(JSON_EXTRACT(matrix, '$.name')) AS matrix, COUNT(*) AS count FROM pixel_it_telemetry where last_change >= CURRENT_DATE - INTERVAL 30 DAY GROUP BY JSON_EXTRACT(matrix, '$.name') ORDER BY matrix`))[0];
 
+
+        result.countryStats = (await connection.query(`SELECT DISTINCT(JSON_EXTRACT(geoip, '$.country')) AS country, COUNT(*) AS count FROM pixel_it_telemetry where last_change >= CURRENT_DATE - INTERVAL 30 DAY GROUP BY JSON_EXTRACT(geoip, '$.country') ORDER BY COUNT DESC`))[0];
         for (const countryStat of result.countryStats) {
             countryStat.country = countries.getName(countryStat.country, 'en', { select: 'official' });
         }
 
+        const sensors = (await connection.query(`SELECT JSON_ARRAYAGG(sensors) as sensors FROM pixel_it_telemetry where last_change >= CURRENT_DATE - INTERVAL 30 DAY`))[0][0].sensors.flat(1);
+        const sensorsDistinct = [...new Set(sensors)]
+        result.sensorStats = [];
+        for (const sensorDistinct of sensorsDistinct.sort()) {
+            result.sensorStats.push({
+                sensor: sensorDistinct,
+                count: sensors.filter(x => x == sensorDistinct).length
+            })
+        }
+
         return result
     } catch (error) {
-        log.error('getUserMapData: {error}', { error: error })
+        log.error('getStatistics: {error}', { error: error })
         return null
     }
 };
