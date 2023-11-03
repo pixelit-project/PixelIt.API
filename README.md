@@ -54,6 +54,10 @@ Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
 
+### 1.7.2 (2023-11-03)*
+
+- (o0shojo0o) small fixes
+
 ### 1.7.1 (2023-11-03)*
 
 - (o0shojo0o) added more statistics to endpoint `Statistics`
