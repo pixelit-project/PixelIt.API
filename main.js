@@ -71,30 +71,54 @@ app.post('/api/Telemetry', telemetryLimiter, async (req, res) => {
         return;
     }
 
+    if (!req.body.uuid || req.body.uuid.length != 40) {
+        log.error('{apiPath}: UUID is not valide', { apiPath: 'Telemetry', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, client, });
+        res.status(400).send('Not valid body');
+        return;
+    }
+
     (async () => {
         req.body.geoip = await geoip.lookup(sourceIP);
         log.info(`{apiPath}: ${JSON.stringify(req.body)}`, { apiPath: 'Telemetry', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, client, });
-        repo.saveStats(req.body);
+        repo.saveTelemetry(req.body);
     })();
 
     res.sendStatus(200);
 });
 
-app.get('/api/UserMapData', async (req, res) => {
+app.get(['/api/UserMap'], async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
-    const userMapData = (await cache.getOrSet('UserMapData', () => { return repo.getUserMapData() }, 30)) ?? [];
 
-    log.info('{apiPath}: {count} User successfully delivered', { apiPath: 'UserMapData', count: userMapData.length, sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, });
-    res.send(userMapData);
+    const isTelemetryUser = (await cache.getOrSet(`IsTelemetryUser_UUID:${req.query.uuid}`, () => { return repo.isTelemetryUser(req.query.uuid) }, 30)) ?? {};
+
+    if (!isTelemetryUser && isTelemetryUser == false) {
+        res.send({ coords: [], error: { telemetryUser: false } });
+        log.info('{apiPath}: UserMap NOT delivered, reason: no telemetry user!', { apiPath: 'UserMap', sourceIP, rawUrl, useragent: req.useragent, uuid: req.query.uuid, rateLimit: req.rateLimit, });
+        return;
+    }
+
+    const userMapData = (await cache.getOrSet('UserMap', () => { return repo.getUserMapData() }, 30)) ?? [];
+
+    log.info('{apiPath}: UserMap ({count} user) successfully delivered', { apiPath: 'UserMap', count: userMapData.length, sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, });
+    res.send({ coords: userMapData });
 });
 
 app.get('/api/Statistics', async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
+
+    const isTelemetryUser = (await cache.getOrSet(`IsTelemetryUser_UUID:${req.query.uuid}`, () => { return repo.isTelemetryUser(req.query.uuid) }, 30)) ?? {};
+
+    if (!isTelemetryUser && isTelemetryUser == false) {
+        res.send({ error: { telemetryUser: false } });
+        log.info('{apiPath}: Statistics NOT delivered, reason: no telemetry user!', { apiPath: 'Statistics', sourceIP, rawUrl, useragent: req.useragent, uuid: req.query.uuid, rateLimit: req.rateLimit, });
+        return;
+    }
+
     const statistics = (await cache.getOrSet('Statistics', () => { return repo.getStatistics() }, 30)) ?? {};
 
-    log.info('{apiPath}: Statistics successfully delivered', { apiPath: 'Statistics', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, });
+    log.info('{apiPath}: Statistics successfully delivered', { apiPath: 'Statistics', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: req.query.uuid, });
     res.send(statistics);
 });
 

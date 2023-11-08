@@ -105,7 +105,7 @@ async function getBMPNewst() {
     }
 }
 
-async function saveStats(telemetry) {
+async function saveTelemetry(telemetry) {
     try {
         await connection.execute(
             `REPLACE INTO pixel_it_telemetry 
@@ -167,6 +167,18 @@ async function saveBMP(bmp) {
     }
 }
 
+async function isTelemetryUser(uuid) {
+    let sqlResult
+    try {
+        sqlResult = await connection.query(`SELECT EXISTS(SELECT uuid FROM pixel_it_telemetry where last_change >= CURRENT_DATE - INTERVAL 30 DAY AND UUID = ? LIMIT 1) as isTelemetryUser`, uuid);
+        console.log(sqlResult[0])
+        return sqlResult[0][0].isTelemetryUser == 1
+    } catch (error) {
+        log.error('isTelemetryUser: {error}', { error: error })
+        return false
+    }
+};
+
 async function getUserMapData() {
     let sqlResult
     const result = [];
@@ -219,8 +231,9 @@ module.exports = {
     getBMPByID,
     getBMPAll,
     getBMPNewst,
-    saveStats,
+    saveTelemetry,
     saveBMP,
     getUserMapData,
     getStatistics,
+    isTelemetryUser,
 };
