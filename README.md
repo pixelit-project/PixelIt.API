@@ -55,6 +55,10 @@ Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
 
+### 1.8.1 (2023-11-11)
+
+- (o0shojo0o) small fixes
+
 ### 1.8.0 (2023-11-11)
 
 - (o0shojo0o) only active telemetry users can see statistics

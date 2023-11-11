@@ -37,13 +37,14 @@ async function getBMPByID(id) {
                             a.id = ?`,
             id
         )
+        if (result[0][0]) {
+            result[0][0].animated = tools.mysqlToBool(result[0][0].animated)
+            return result[0][0]
+        }
 
-        result[0][0].animated = tools.mysqlToBool(result[0][0].animated)
-
-        return result[0][0]
     } catch (error) {
         log.error('getBMPByID: {error}', { error: error })
-        return null
+        return undefined
     }
 };
 
