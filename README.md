@@ -28,6 +28,7 @@ pixelit_api:
     - /etc/localtime:/etc/localtime:ro
   environment:
     PORT: 8080
+    TELEMETRY_USER_CHECK: false
     MYSQL_HOST: host
     MYSQL_DATABASE: database
     MYSQL_USER: user
@@ -54,19 +55,20 @@ Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
 
-### **WORK IN PROGRESS**
+### 1.8.0 (2023-11-11)
 
 - (o0shojo0o) only active telemetry users can see statistics
+- (o0shojo0o) added ENV param `TELEMETRY_USER_CHECK`
 
-### 1.7.2 (2023-11-03)*
+### 1.7.2 (2023-11-03)
 
 - (o0shojo0o) small fixes
 
-### 1.7.1 (2023-11-03)*
+### 1.7.1 (2023-11-03)
 
 - (o0shojo0o) added more statistics to endpoint `Statistics`
 
-### 1.7.0 (2023-11-03)*
+### 1.7.0 (2023-11-03)
 
 - (o0shojo0o) added new api endpoint `Statistics`
 

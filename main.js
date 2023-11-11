@@ -13,6 +13,7 @@ const repo = require('./libs/pixelItRepo');
 const { apiLimiter, telemetryLimiter, saveBitmapLimiter } = require('./libs/rateLimit');
 
 const port = process.env.PORT || 8080;
+const telemetryUserCheck = process.env.TELEMETRY_USER_CHECK ? process.env.TELEMETRY_USER_CHECK.toUpperCase() == "TRUE" : false
 
 // defining the Express app
 const app = express();
@@ -86,39 +87,45 @@ app.post('/api/Telemetry', telemetryLimiter, async (req, res) => {
     res.sendStatus(200);
 });
 
-app.get(['/api/UserMap'], async (req, res) => {
+app.get(['/api/UserMap', '/api/UserMapData'], async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
+    const uuid = req.query.uuid || '';
 
-    const isTelemetryUser = (await cache.getOrSet(`IsTelemetryUser_UUID:${req.query.uuid}`, () => { return repo.isTelemetryUser(req.query.uuid) }, 30)) ?? {};
+    if (telemetryUserCheck == true) {
+        const isTelemetryUser = (await cache.getOrSet(`IsTelemetryUser_UUID:${uuid}`, () => { return repo.isTelemetryUser(uuid) }, 30)) ?? {};
 
-    if (!isTelemetryUser && isTelemetryUser == false) {
-        res.send({ coords: [], error: { telemetryUser: false } });
-        log.info('{apiPath}: UserMap NOT delivered, reason: no telemetry user!', { apiPath: 'UserMap', sourceIP, rawUrl, useragent: req.useragent, uuid: req.query.uuid, rateLimit: req.rateLimit, });
-        return;
+        if (!isTelemetryUser && isTelemetryUser == false) {
+            res.send({ coords: [], error: { telemetryUser: false } });
+            log.info('{apiPath}: UserMap NOT delivered, reason: no telemetry user!', { apiPath: 'UserMap', sourceIP, rawUrl, useragent: req.useragent, uuid: uuid, rateLimit: req.rateLimit, });
+            return;
+        }
     }
 
     const userMapData = (await cache.getOrSet('UserMap', () => { return repo.getUserMapData() }, 30)) ?? [];
 
-    log.info('{apiPath}: UserMap ({count} user) successfully delivered', { apiPath: 'UserMap', count: userMapData.length, sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, });
+    log.info('{apiPath}: UserMap ({count} user) successfully delivered', { apiPath: 'UserMap', count: userMapData.length, sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid, });
     res.send({ coords: userMapData });
 });
 
 app.get('/api/Statistics', async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
+    const uuid = req.query.uuid || '';
 
-    const isTelemetryUser = (await cache.getOrSet(`IsTelemetryUser_UUID:${req.query.uuid}`, () => { return repo.isTelemetryUser(req.query.uuid) }, 30)) ?? {};
+    if (telemetryUserCheck == true) {
+        const isTelemetryUser = (await cache.getOrSet(`IsTelemetryUser_UUID:${uuid}`, () => { return repo.isTelemetryUser(uuid) }, 30)) ?? {};
 
-    if (!isTelemetryUser && isTelemetryUser == false) {
-        res.send({ error: { telemetryUser: false } });
-        log.info('{apiPath}: Statistics NOT delivered, reason: no telemetry user!', { apiPath: 'Statistics', sourceIP, rawUrl, useragent: req.useragent, uuid: req.query.uuid, rateLimit: req.rateLimit, });
-        return;
+        if (telemetryUserCheck == true && !isTelemetryUser && isTelemetryUser == false) {
+            res.send({ error: { telemetryUser: false } });
+            log.info('{apiPath}: Statistics NOT delivered, reason: no telemetry user!', { apiPath: 'Statistics', sourceIP, rawUrl, useragent: req.useragent, uuid: uuid, rateLimit: req.rateLimit, });
+            return;
+        }
     }
 
     const statistics = (await cache.getOrSet('Statistics', () => { return repo.getStatistics() }, 30)) ?? {};
 
-    log.info('{apiPath}: Statistics successfully delivered', { apiPath: 'Statistics', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: req.query.uuid, });
+    log.info('{apiPath}: Statistics successfully delivered', { apiPath: 'Statistics', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid, });
     res.send(statistics);
 });
 

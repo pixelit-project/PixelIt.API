@@ -4,14 +4,14 @@ let seqAPiKey = null
 
 if (!process.env.SEQ_SERVER || process.env.SEQ_SERVER.length == 0) {
     isSEQEnabled = false
-    console.warn(prepareLogForConsole('SEQ_SERVER not set', null, new Date()))
+    console.warn(prepareLogForConsole('Warn', 'SEQ_SERVER not set', null, new Date()))
 }
 
 if (!process.env.SEQ_APIKEY || process.env.SEQ_APIKEY.length == 0) {
-    console.warn(prepareLogForConsole('SEQ_APIKEY not set', null, new Date()))
+    console.warn(prepareLogForConsole('Warn', 'SEQ_APIKEY not set', null, new Date()))
 } else {
     seqAPiKey = process.env.SEQ_APIKEY
-    console.log(prepareLogForConsole('SEQ_APIKEY set', null, new Date()))
+    console.log(prepareLogForConsole('Info', 'SEQ_APIKEY set', null, new Date()))
 }
 
 const logger = new seq.Logger({
@@ -27,7 +27,7 @@ function enrichProperties(properties) {
     return properties
 }
 
-function prepareLogForConsole(message, properties, dateTime) {
+function prepareLogForConsole(lvl, message, properties, dateTime) {
     let extendedInformation = ''
     if (properties && properties.sourceIP) {
         extendedInformation += `[SourceIP: ${properties.sourceIP}`
@@ -45,14 +45,14 @@ function prepareLogForConsole(message, properties, dateTime) {
             message = message.replace(`{${key}}`, properties[key])
         }
     }
-    return `[${dateTime.toISOString().slice(0, 10)}T${dateTime.toLocaleTimeString()}]${extendedInformation} ${message}`
+    return `[${dateTime.toISOString()}][${lvl}]${extendedInformation} ${message}`
 }
 
 module.exports = {
     info: (message, properties) => {
         const dateTime = new Date()
         properties = enrichProperties(properties)
-        console.log(prepareLogForConsole(message, properties, dateTime))
+        console.log(prepareLogForConsole('Info', message, properties, dateTime))
         if (isSEQEnabled) {
             logger.emit({
                 timestamp: dateTime,
@@ -65,7 +65,7 @@ module.exports = {
     warn: (message, properties) => {
         const dateTime = new Date()
         properties = enrichProperties(properties)
-        console.warn(prepareLogForConsole(message, properties, dateTime))
+        console.warn(prepareLogForConsole('Warn', message, properties, dateTime))
         if (isSEQEnabled) {
             logger.emit({
                 timestamp: dateTime,
@@ -78,7 +78,7 @@ module.exports = {
     error: (message, properties) => {
         const dateTime = new Date()
         properties = enrichProperties(properties)
-        console.error(prepareLogForConsole(message, properties, dateTime))
+        console.error(prepareLogForConsole('Error', message, properties, dateTime))
         if (isSEQEnabled) {
             logger.emit({
                 timestamp: dateTime,
