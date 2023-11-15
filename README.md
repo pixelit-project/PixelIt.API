@@ -55,7 +55,7 @@ Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
 
-### 1.8.2 (2023-11-15)
+### 1.8.3 (2023-11-15)
 
 - (o0shojo0o) Version statistics revised
 
