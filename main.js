@@ -160,7 +160,7 @@ app.get('/api/LastVersion', async (req, res) => {
     let lastReleaseData = {};
 
     if (releases.length > 0) {
-        lastReleaseData = releases[0];
+        lastReleaseData = releases.filter(x => x.prerelease == false)[0];
     }
 
     for (const key of ['downloads', 'downloadURL', 'fwdownloads', 'releaseNoteArray', 'readmeLink', 'date']) {
