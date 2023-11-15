@@ -12,7 +12,7 @@ async function getGitReleases() {
     try {
         const res = await axios.get('https://api.github.com/repos/pixelit-project/PixelIt/releases', authConf);
         // No prereleases
-        const gitData = res.data.filter(x => x.prerelease == false);
+        const releases = res.data;//.filter(x => x.prerelease == false);
         log.info('GitAPIRateLimit: Limit: {rateLimitLimit}, Remaining: {rateLimitRemaining}, Used: {rateLimitUsed}, Reset at {rateLimitReset}', {
             rateLimitLimit: res.headers['x-ratelimit-limit'],
             rateLimitRemaining: res.headers['x-ratelimit-remaining'],
@@ -20,17 +20,18 @@ async function getGitReleases() {
             rateLimitReset: new Date(res.headers['x-ratelimit-reset'] * 1000).toLocaleString()
         });
 
-        for (let i = 0; i < 4; i++) {
+        for (const release of releases) {
             const data = {
-                version: gitData[i].name,
-                date: gitData[i].published_at.split("T")[0],
-                downloads: gitData[i].assets.reduce((result, x) => result + x.download_count, 0),
-                downloadURL: gitData[i].html_url,
+                version: release.name,
+                prerelease: release.prerelease,
+                date: release.published_at.split("T")[0],
+                downloads: release.assets.reduce((result, x) => result + x.download_count, 0),
+                downloadURL: release.html_url,
                 fwdownloads: [],
-                releaseNoteArray: gitData[i].body.replaceAll("-", "").split("\r\n"),
-                readmeLink: `https://github.com/pixelit-project/PixelIt#${gitData[i].name.replaceAll(".", "")}-${gitData[i].published_at.split("T")[0]}`,
+                releaseNoteArray: release.body.replaceAll("-", "").split("\r\n"),
+                readmeLink: `https://github.com/pixelit-project/PixelIt#${release.name.replaceAll(".", "")}-${release.published_at.split("T")[0]}`,
             };
-            for (const asset of gitData[i].assets) {
+            for (const asset of release.assets) {
                 let fwdownload;
                 // New filename format https://github.com/pixelit-project/PixelIt/pull/153
                 // firmware_v3.3.3_wemos_d1_mini32.bin

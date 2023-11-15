@@ -130,6 +130,24 @@ app.get('/api/Statistics', async (req, res) => {
     }
 
     const statistics = (await cache.getOrSet('Statistics', () => { return repo.getStatistics() }, 30)) ?? {};
+    const releasesArray = (await cache.getOrSet('Releases', () => { return gitRepo.getGitReleases() }, 600)) ?? [];
+    let scCount = 0;
+    let officialReleases = [];
+    if (releasesArray.length > 0) {
+        officialReleases = releasesArray.map(x => x.version).filter(x => x != '');
+    }
+
+    for (const versionStat of statistics.versionStats) {
+        if (!officialReleases.includes(versionStat.version)) {
+            // Tag as unofficial versions
+            versionStat.version = 'remove_';
+            // Count 
+            scCount += versionStat.count;
+        }
+    }
+
+    statistics.versionStats = statistics.versionStats.filter(x => x.version != 'remove_');
+    statistics.versionStats.push({ version: 'Self compiled', count: scCount })
 
     log.info('{apiPath}: Statistics successfully delivered', { apiPath: 'Statistics', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid, });
     res.send(statistics);
@@ -161,7 +179,8 @@ app.get('/api/LastRelease', async (req, res) => {
     let lastReleaseData = {};
 
     if (releases.length > 0) {
-        lastReleaseData = releases[0];
+        // No pre-release and the latest release 
+        lastReleaseData = releases.filter(x => x.prerelease == false)[0];
     }
 
     log.info('{apiPath}: Version {version} successfully delivered', { apiPath: 'LastRelease', version: lastReleaseData.version, sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, });
@@ -170,10 +189,30 @@ app.get('/api/LastRelease', async (req, res) => {
     res.send(lastReleaseData);
 });
 
+app.get('/api/OfficialReleases', async (req, res) => {
+    const sourceIP = tools.getIPFromRequest(req);
+    const rawUrl = tools.getRawURLFromRequest(req);
+    const releasesArray = (await cache.getOrSet('Releases', () => { return gitRepo.getGitReleases() }, 600)) ?? [];
+    let data = { releases: [] };
+
+    if (releasesArray.length > 0) {
+        data.releases = releasesArray.map(x => x.version).filter(x => x != '');
+    }
+
+    log.info('{apiPath}: Version {versions} successfully delivered', { apiPath: 'OfficialReleases', versions: data.releases.map(value => value).join(', '), sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, });
+
+    res.send(data);
+});
+
 app.get('/api/Releases', async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
-    const releases = await cache.getOrSet('Releases', () => { return gitRepo.getGitReleases() }, 600) ?? [];
+    let releases = await cache.getOrSet('Releases', () => { return gitRepo.getGitReleases() }, 600) ?? [];
+
+    if (releases.length > 0) {
+        // No pre-release and the latest 4 releases 
+        releases = releases.filter(x => x.prerelease == false).slice(0, 4);
+    }
 
     log.info('{apiPath}: Versions {versions} successfully delivered', { apiPath: 'Releases', versions: releases.map(value => value.version).join(', '), sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, });
 
