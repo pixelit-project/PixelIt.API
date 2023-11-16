@@ -52,7 +52,7 @@ function cleanStats(releasesArray, statistics, officialBuilds) {
         }
     }
     statistics.buildStats = statistics.buildStats.filter(x => x.build != 'remove_');
-    statistics.buildStats.splice(statistics.buildStats.length - 1, 0, { version: 'Custom', count });
+    statistics.buildStats.splice(statistics.buildStats.length - 1, 0, { build: 'Custom', count });
 }
 
 module.exports = {
