@@ -1,5 +1,6 @@
-const axios = require('axios').default
-const log = require('./logger')
+const axios = require('axios').default;
+const ini = require('ini');
+const log = require('./logger');
 let authConf = null;
 
 async function getGitReleases() {
@@ -60,6 +61,21 @@ async function getGitReleases() {
     }
 }
 
+async function getOfficialBuilds() {
+    try {
+        const res = await axios.get('https://raw.githubusercontent.com/pixelit-project/PixelIt/main/platformio.ini');
+        const config = ini.parse(res.data)
+        const officialBuilds = Object.values(config).map(x => x['-DBUILD_SECTION']).filter(x => x != undefined)
+        return officialBuilds;
+    } catch (error) {
+        log.error('getOfficialBuilds: error {error}', { error });
+        return [];
+    }
+
+
+}
+
 module.exports = {
     getGitReleases,
+    getOfficialBuilds,
 }

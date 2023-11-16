@@ -129,28 +129,16 @@ app.get('/api/Statistics', async (req, res) => {
         }
     }
 
-    const statistics = (await cache.getOrSet('Statistics', () => { return repo.getStatistics() }, 30)) ?? {};
-    const releasesArray = (await cache.getOrSet('Releases', () => { return gitRepo.getGitReleases() }, 600)) ?? [];
-    let scCount = 0;
-    let officialReleases = [];
-    if (releasesArray.length > 0) {
-        officialReleases = releasesArray.map(x => x.version).filter(x => x != '');
-    }
-
-    for (const versionStat of statistics.versionStats) {
-        if (!officialReleases.includes(versionStat.version)) {
-            // Tag as unofficial versions
-            versionStat.version = 'remove_';
-            // Count 
-            scCount += versionStat.count;
-        }
-    }
-
-    statistics.versionStats = statistics.versionStats.filter(x => x.version != 'remove_');
-    statistics.versionStats.push({ version: 'Self compiled', count: scCount })
+    const result = (await cache.getOrSet('Statistics', async () => {
+        const releasesArray = (await cache.getOrSet('Releases', () => { return gitRepo.getGitReleases() }, 600)) ?? [];
+        const officialBuilds = (await cache.getOrSet('OfficialBuilds', () => { return gitRepo.getOfficialBuilds() }, 600)) ?? [];
+        const statistics = await repo.getStatistics()
+        tools.cleanStats(releasesArray, statistics, officialBuilds);
+        return statistics;
+    }, 30)) ?? {};
 
     log.info('{apiPath}: Statistics successfully delivered', { apiPath: 'Statistics', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid, });
-    res.send(statistics);
+    res.send(result);
 });
 
 app.get('/api/LastVersion', async (req, res) => {
