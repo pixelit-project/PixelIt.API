@@ -55,9 +55,10 @@ Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
 
-### **WORK IN PROGRESS**
+### 1.8.6 (2024-10-06)
 
 - (o0shojo0o) change node from 20 to 21
+- (o0shojo0o) update dependencies
 
 ### 1.8.5 (2023-11-16)
 
