@@ -28,7 +28,7 @@ pixelit_api:
     - /etc/localtime:/etc/localtime:ro
   environment:
     PORT: 8080
-    TELEMETRY_USER_CHECK: false
+    TELEMETRY_USER_CHECK: true
     MYSQL_HOST: host
     MYSQL_DATABASE: database
     MYSQL_USER: user
@@ -54,6 +54,10 @@ pixelit_api:
 Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
+
+### **WORK IN PROGRESS**
+
+- (o0shojo0o) change node from 20 to 21
 
 ### 1.8.5 (2023-11-16)
 
