@@ -146,6 +146,7 @@ app.get('/api/Statistics', async (req, res) => {
 app.get('/api/LastVersion', async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
+    const uuid = req.query.uuid || '';
     const releases = (await cache.getOrSet('Releases', () => { return gitRepo.getGitReleases() }, 600)) ?? [];
     let lastReleaseData = {};
 
@@ -157,7 +158,7 @@ app.get('/api/LastVersion', async (req, res) => {
         delete lastReleaseData[key];
     }
 
-    log.info('{apiPath}: Version {version} successfully delivered', { apiPath: 'LastVersion', version: lastReleaseData.version, sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, });
+    log.info('{apiPath}: Version {version} successfully delivered', { apiPath: 'LastVersion', version: lastReleaseData.version, sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid, });
 
     res.send(lastReleaseData);
 });
@@ -165,6 +166,7 @@ app.get('/api/LastVersion', async (req, res) => {
 app.get('/api/LastRelease', async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
+    const uuid = req.query.uuid || '';
     const releases = (await cache.getOrSet('Releases', () => { return gitRepo.getGitReleases() }, 600)) ?? [];
     let lastReleaseData = {};
 
@@ -173,7 +175,7 @@ app.get('/api/LastRelease', async (req, res) => {
         lastReleaseData = releases.filter(x => x.prerelease == false)[0];
     }
 
-    log.info('{apiPath}: Version {version} successfully delivered', { apiPath: 'LastRelease', version: lastReleaseData.version, sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, });
+    log.info('{apiPath}: Version {version} successfully delivered', { apiPath: 'LastRelease', version: lastReleaseData.version, sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid, });
 
 
     res.send(lastReleaseData);
@@ -182,6 +184,7 @@ app.get('/api/LastRelease', async (req, res) => {
 app.get('/api/OfficialReleases', async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
+    const uuid = req.query.uuid || '';
     const releasesArray = (await cache.getOrSet('Releases', () => { return gitRepo.getGitReleases() }, 600)) ?? [];
     let data = { releases: [] };
 
@@ -189,7 +192,7 @@ app.get('/api/OfficialReleases', async (req, res) => {
         data.releases = releasesArray.map(x => x.version).filter(x => x != '');
     }
 
-    log.info('{apiPath}: Version {versions} successfully delivered', { apiPath: 'OfficialReleases', versions: data.releases.map(value => value).join(', '), sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, });
+    log.info('{apiPath}: Version {versions} successfully delivered', { apiPath: 'OfficialReleases', versions: data.releases.map(value => value).join(', '), sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid, });
 
     res.send(data);
 });
@@ -197,6 +200,7 @@ app.get('/api/OfficialReleases', async (req, res) => {
 app.get('/api/Releases', async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
+    const uuid = req.query.uuid || '';
     let releases = await cache.getOrSet('Releases', () => { return gitRepo.getGitReleases() }, 600) ?? [];
 
     if (releases.length > 0) {
@@ -204,7 +208,7 @@ app.get('/api/Releases', async (req, res) => {
         releases = releases.filter(x => x.prerelease == false).slice(0, 4);
     }
 
-    log.info('{apiPath}: Versions {versions} successfully delivered', { apiPath: 'Releases', versions: releases.map(value => value.version).join(', '), sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, });
+    log.info('{apiPath}: Versions {versions} successfully delivered', { apiPath: 'Releases', versions: releases.map(value => value.version).join(', '), sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid });
 
     res.send(releases);
 });
@@ -214,9 +218,10 @@ app.post('/api/SaveBitmap', saveBitmapLimiter, async (req, res) => {
     const rawUrl = tools.getRawURLFromRequest(req);
     const geoipData = await geoip.lookup(sourceIP);
     const client = tools.getClientFromRequest(req);
+    const uuid = req.query.uuid || '';
 
     if (!req.body) {
-        log.error('{apiPath}: No body found', { apiPath: 'SaveBitmap', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, geoip: geoipData, client, });
+        log.error('{apiPath}: No body found', { apiPath: 'SaveBitmap', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, geoip: geoipData, client, uuid: uuid, });
         res.status(400).send('Not valid body');
         return;
     }
