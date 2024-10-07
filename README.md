@@ -55,6 +55,10 @@ Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
 
+### 1.8.7 (2024-10-07)
+
+- (o0shojo0o) add uuid to each request
+
 ### 1.8.6 (2024-10-06)
 
 - (o0shojo0o) change node from 20 to 21
