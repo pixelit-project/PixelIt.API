@@ -27,7 +27,7 @@
     "express-useragent": "^1.0.15",
     "fast-geoip": "^1.1.88",
     "helmet": "^8.0.0",
-    "i18n-iso-countries": "^7.12.0",
+    "i18n-iso-countries": "^7.13.0",
     "ini": "^5.0.0",
     "mysql2": "^3.11.5",
     "node-cache": "^5.1.2",
