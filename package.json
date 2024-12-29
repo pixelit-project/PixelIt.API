@@ -29,7 +29,7 @@
     "helmet": "^8.0.0",
     "i18n-iso-countries": "^7.12.0",
     "ini": "^5.0.0",
-    "mysql2": "^3.11.5",
+    "mysql2": "^3.12.0",
     "node-cache": "^5.1.2",
     "seq-logging": "^2.2.0"
   },
