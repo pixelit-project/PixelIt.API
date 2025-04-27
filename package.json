@@ -18,7 +18,7 @@
   },
   "homepage": "https://github.com/pixelit-project/PixelIt.api#readme",
   "dependencies": {
-    "axios": "^1.7.9",
+    "axios": "^1.9.0",
     "body-parser": "^1.20.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
