@@ -24,7 +24,7 @@
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "express-rate-limit": "^8.1.0",
-    "express-useragent": "^1.0.15",
+    "express-useragent": "^2.0.2",
     "fast-geoip": "^1.1.88",
     "helmet": "^8.0.0",
     "i18n-iso-countries": "^7.12.0",
