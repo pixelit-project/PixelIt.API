@@ -16,7 +16,7 @@ const connection = mysql.createPool({
 });
 
 async function getBMPByID(id) {
-    let result
+    let result;
     try {
         result = await connection.query(
             `select 
@@ -36,14 +36,31 @@ async function getBMPByID(id) {
                         where
                             a.id = ?`,
             id
-        )
+        );
         if (result[0][0]) {
-            result[0][0].animated = tools.mysqlToBool(result[0][0].animated)
-            return result[0][0]
+            result[0][0].animated = tools.mysqlToBool(result[0][0].animated);
+            return result[0][0];
         }
 
     } catch (error) {
         log.error('getBMPByID: {error}', { error: error })
+        return undefined
+    }
+};
+
+async function getBMPByID_v2(id) {
+    let result;
+    try {
+        result = await getBMPByID(id);
+        if (result) {
+            if (result.animated == true) {
+                result.rgb565array = `[${result.rgb565array}]`;
+            }
+            return result;
+        }
+
+    } catch (error) {
+        log.error('getBMPByID_v2: {error}', { error: error })
         return undefined
     }
 };
@@ -229,6 +246,7 @@ async function getStatistics() {
 
 module.exports = {
     getBMPByID,
+    getBMPByID_v2,
     getBMPAll,
     getBMPNewst,
     saveTelemetry,

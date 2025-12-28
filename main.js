@@ -51,6 +51,30 @@ app.get('/api/GetBMPByID/:id', async (req, res) => {
     res.send(bmp);
 });
 
+app.get('/api/GetBMPByID_v2/:id', async (req, res) => {
+    const sourceIP = tools.getIPFromRequest(req);
+    const rawUrl = tools.getRawURLFromRequest(req);
+    const id = req.params.id;
+    const uuid = req.query.uuid || '';
+
+    if (tools.isNumeric(id) == false) {
+        log.warn('{apiPath}: {id} is not a valid ID!', { apiPath: 'GetBMPByID_v2', id, sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid, });
+        res.status(400).send('Not valid ID');
+        return;
+    }
+
+    const bmp = (await cache.getOrSet(`GetBMPByID_v2_${id}`, () => { return repo.getBMPByID(id) }, 0));
+
+    if (!bmp) {
+        log.warn('{apiPath}: BMP ID: {id} is not valide', { apiPath: 'GetBMPByID_v2', id: id, sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid, });
+        res.status(400).send(`BMP ID: ${id} is not valide`);
+        return;
+    }
+
+    log.info('{apiPath}: BMP with ID {id} and name {name} successfully delivered', { apiPath: 'GetBMPByID_v2', id: bmp.id, name: bmp.name, sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid, });
+    res.send(bmp);
+});
+
 app.get('/api/GetBMPNewst', async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
