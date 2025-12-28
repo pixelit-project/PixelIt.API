@@ -54,7 +54,7 @@ async function getBMPByID_v2(id) {
         result = await getBMPByID(id);
         if (result) {
             if (result.animated == true) {
-                result.rgb565array = `[${result.rgb565array}]`;
+                result.rgB565Array = `[${result.rgB565Array}]`;
             }
             return result;
         }
