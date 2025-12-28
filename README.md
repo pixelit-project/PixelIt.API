@@ -55,7 +55,7 @@ Install dependencies with `npm install` and run dev server with `npn run dev`.
 
 ## Changelog
 
-### 1.8.8 (2025-12-28)
+### 1.8.9 (2025-12-28)
 - (o0shojo0o) added new api endpoint `getBMPByID_v2` for better handling of animated bitmaps
 
 ### 1.8.7 (2024-10-07)
