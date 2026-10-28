@@ -164,8 +164,9 @@ regression tests and dependency audit before building and smoke-testing Docker.
 
 ## Changelog
 
-### Unreleased
+### 1.9.0 (2026-10-28)
 
+- (o0shojo0o) Upgrade to Express 5 and body-parser 2; update dotenv, mysql2, express-rate-limit, and CodeQL.
 - (o0shojo0o) Require successful regression tests, dependency auditing, Docker build, and container smoke tests before eligible Dependabot updates can be automatically merged.
 - (o0shojo0o) Switch Docker to Node.js 24, install locked production dependencies, run as an unprivileged user, and exclude local files from the build context.
 - (o0shojo0o) Update vulnerable dependencies within existing version ranges and declare supported Node.js versions.
