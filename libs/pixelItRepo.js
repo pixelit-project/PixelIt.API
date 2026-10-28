@@ -44,7 +44,7 @@ async function getBMPByID(id) {
 
     } catch (error) {
         log.error('getBMPByID: {error}', { error: error })
-        return undefined
+        throw error
     }
 };
 
@@ -61,7 +61,7 @@ async function getBMPByID_v2(id) {
 
     } catch (error) {
         log.error('getBMPByID_v2: {error}', { error: error })
-        return undefined
+        throw error
     }
 };
 
@@ -90,7 +90,7 @@ async function getBMPAll() {
         return result[0]
     } catch (error) {
         log.error('getBMPAll: {error}', { error: error })
-        return null
+        throw error
     }
 };
 
@@ -114,12 +114,13 @@ async function getBMPNewst() {
                         where
                             a.id = (select max(id) from pixel_it_bitmap)`)
 
+        if (!result[0][0]) return null;
         result[0][0].animated = tools.mysqlToBool(result[0][0].animated)
 
         return result[0][0]
     } catch (error) {
         log.error('getBMPNewst: {error}', { error: error })
-        return null
+        throw error
     }
 }
 
@@ -193,7 +194,7 @@ async function isTelemetryUser(uuid) {
         return sqlResult[0][0].isTelemetryUser == 1
     } catch (error) {
         log.error('isTelemetryUser: {error}', { error: error })
-        return false
+        throw error
     }
 };
 
@@ -210,7 +211,7 @@ async function getUserMapData() {
         return result
     } catch (error) {
         log.error('getUserMapData: {error}', { error: error })
-        return null
+        throw error
     }
 };
 
@@ -228,7 +229,8 @@ async function getStatistics() {
             countryStat.country = countries.getName(countryStat.country, 'en', { select: 'official' });
         }
 
-        const sensors = (await connection.query(`SELECT JSON_ARRAYAGG(sensors) as sensors FROM pixel_it_telemetry where last_change >= CURRENT_DATE - INTERVAL 30 DAY`))[0][0].sensors.flat(1);
+        const sensorRows = (await connection.query(`SELECT JSON_ARRAYAGG(sensors) as sensors FROM pixel_it_telemetry where last_change >= CURRENT_DATE - INTERVAL 30 DAY`))[0][0].sensors;
+        const sensors = (sensorRows ?? []).flat(1).filter(sensor => typeof sensor === 'string');
         const sensorsDistinct = [...new Set(sensors)]
         result.sensorStats = [];
         for (const sensorDistinct of sensorsDistinct.sort()) {
@@ -241,7 +243,7 @@ async function getStatistics() {
         return result
     } catch (error) {
         log.error('getStatistics: {error}', { error: error })
-        return null
+        throw error
     }
 };
 

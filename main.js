@@ -16,6 +16,11 @@ const { apiLimiter, telemetryLimiter, saveBitmapLimiter } = require('./libs/rate
 const port = process.env.PORT || 8080;
 const telemetryUserCheck = process.env.TELEMETRY_USER_CHECK ? process.env.TELEMETRY_USER_CHECK.toUpperCase() == "TRUE" : false
 
+// Express 4 does not forward rejected async handlers to error middleware.
+const asyncRoute = handler => (req, res, next) => {
+    Promise.resolve().then(() => handler(req, res, next)).catch(next);
+};
+
 // defining the Express app
 const app = express();
 // Only explicitly configured proxy addresses may supply the client IP.
@@ -32,7 +37,7 @@ app.use(cors());
 
 app.use('/api/', apiLimiter);
 
-app.get('/api/GetBMPByID/:id', async (req, res) => {
+app.get('/api/GetBMPByID/:id', asyncRoute(async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
     const id = req.params.id;
@@ -54,9 +59,9 @@ app.get('/api/GetBMPByID/:id', async (req, res) => {
 
     log.info('{apiPath}: BMP with ID {id} and name {name} successfully delivered', { apiPath: 'GetBMPByID', id: bmp.id, name: bmp.name, sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid, });
     res.send(bmp);
-});
+}));
 
-app.get('/api/GetBMPByID_v2/:id', async (req, res) => {
+app.get('/api/GetBMPByID_v2/:id', asyncRoute(async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
     const id = req.params.id;
@@ -78,27 +83,27 @@ app.get('/api/GetBMPByID_v2/:id', async (req, res) => {
 
     log.info('{apiPath}: BMP with ID {id} and name {name} successfully delivered', { apiPath: 'GetBMPByID_v2', id: bmp.id, name: bmp.name, sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid, });
     res.send(bmp);
-});
+}));
 
-app.get('/api/GetBMPNewst', async (req, res) => {
+app.get('/api/GetBMPNewst', asyncRoute(async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
     const uuid = req.query.uuid || '';
     const bmp = (await cache.getOrSet('GetBMPNewst', () => { return repo.getBMPNewst() }, 30)) ?? {};
     log.info('{apiPath} BMP with ID {id} and name {name} successfully delivered', { apiPath: 'GetBMPNewst', id: bmp.id, name: bmp.name, sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid, });
     res.send(bmp);
-});
+}));
 
-app.get('/api/GetBMPAll', async (req, res) => {
+app.get('/api/GetBMPAll', asyncRoute(async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
     const uuid = req.query.uuid || '';
     const bmps = (await cache.getOrSet('GetBMPAll', () => { return repo.getBMPAll() }, 30)) ?? [];
     log.info('{apiPath}: {count} BMPs successfully delivered', { apiPath: 'GetBMPAll', count: bmps.length, sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid, });
     res.send(bmps);
-});
+}));
 
-app.post('/api/Telemetry', telemetryLimiter, async (req, res, next) => {
+app.post('/api/Telemetry', telemetryLimiter, asyncRoute(async (req, res, next) => {
     if (!validTelemetry(req.body)) {
         return res.status(400).send('Not valid body');
     }
@@ -113,17 +118,17 @@ app.post('/api/Telemetry', telemetryLimiter, async (req, res, next) => {
     } catch (error) {
         next(error);
     }
-});
+}));
 
-app.get(['/api/UserMap', '/api/UserMapData'], async (req, res) => {
+app.get(['/api/UserMap', '/api/UserMapData'], asyncRoute(async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
     const uuid = req.query.uuid || '';
 
     if (telemetryUserCheck == true) {
-        const isTelemetryUser = (await cache.getOrSet(`IsTelemetryUser_UUID:${uuid}`, () => { return repo.isTelemetryUser(uuid) }, 30)) ?? {};
+        const isTelemetryUser = await cache.getOrSet(`IsTelemetryUser_UUID:${uuid}`, () => { return repo.isTelemetryUser(uuid) }, 30);
 
-        if (!isTelemetryUser && isTelemetryUser == false) {
+        if (!isTelemetryUser) {
             res.send({ coords: [], error: { telemetryUser: false } });
             log.info('{apiPath}: UserMap NOT delivered, reason: no telemetry user!', { apiPath: 'UserMap', sourceIP, rawUrl, useragent: req.useragent, uuid: uuid, rateLimit: req.rateLimit, });
             return;
@@ -134,17 +139,17 @@ app.get(['/api/UserMap', '/api/UserMapData'], async (req, res) => {
 
     log.info('{apiPath}: UserMap ({count} user) successfully delivered', { apiPath: 'UserMap', count: userMapData.length, sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid, });
     res.send({ coords: userMapData });
-});
+}));
 
-app.get('/api/Statistics', async (req, res) => {
+app.get('/api/Statistics', asyncRoute(async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
     const uuid = req.query.uuid || '';
 
     if (telemetryUserCheck == true) {
-        const isTelemetryUser = (await cache.getOrSet(`IsTelemetryUser_UUID:${uuid}`, () => { return repo.isTelemetryUser(uuid) }, 30)) ?? {};
+        const isTelemetryUser = await cache.getOrSet(`IsTelemetryUser_UUID:${uuid}`, () => { return repo.isTelemetryUser(uuid) }, 30);
 
-        if (telemetryUserCheck == true && !isTelemetryUser && isTelemetryUser == false) {
+        if (!isTelemetryUser) {
             res.send({ error: { telemetryUser: false } });
             log.info('{apiPath}: Statistics NOT delivered, reason: no telemetry user!', { apiPath: 'Statistics', sourceIP, rawUrl, useragent: req.useragent, uuid: uuid, rateLimit: req.rateLimit, });
             return;
@@ -161,18 +166,14 @@ app.get('/api/Statistics', async (req, res) => {
 
     log.info('{apiPath}: Statistics successfully delivered', { apiPath: 'Statistics', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid, });
     res.send(result);
-});
+}));
 
-app.get('/api/LastVersion', async (req, res) => {
+app.get('/api/LastVersion', asyncRoute(async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
     const uuid = req.query.uuid || '';
     const releases = (await cache.getOrSet('Releases', () => { return gitRepo.getGitReleases() }, 600)) ?? [];
-    let lastReleaseData = {};
-
-    if (releases.length > 0) {
-        lastReleaseData = releases.filter(x => x.prerelease == false)[0];
-    }
+    const lastReleaseData = { ...(releases.find(release => release.prerelease === false) || {}) };
 
     for (const key of ['downloads', 'downloadURL', 'fwdownloads', 'releaseNoteArray', 'readmeLink', 'date']) {
         delete lastReleaseData[key];
@@ -181,27 +182,22 @@ app.get('/api/LastVersion', async (req, res) => {
     log.info('{apiPath}: Version {version} successfully delivered', { apiPath: 'LastVersion', version: lastReleaseData.version, sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid, });
 
     res.send(lastReleaseData);
-});
+}));
 
-app.get('/api/LastRelease', async (req, res) => {
+app.get('/api/LastRelease', asyncRoute(async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
     const uuid = req.query.uuid || '';
     const releases = (await cache.getOrSet('Releases', () => { return gitRepo.getGitReleases() }, 600)) ?? [];
-    let lastReleaseData = {};
-
-    if (releases.length > 0) {
-        // No pre-release and the latest release 
-        lastReleaseData = releases.filter(x => x.prerelease == false)[0];
-    }
+    const lastReleaseData = releases.find(release => release.prerelease === false) || {};
 
     log.info('{apiPath}: Version {version} successfully delivered', { apiPath: 'LastRelease', version: lastReleaseData.version, sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid, });
 
 
     res.send(lastReleaseData);
-});
+}));
 
-app.get('/api/OfficialReleases', async (req, res) => {
+app.get('/api/OfficialReleases', asyncRoute(async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
     const uuid = req.query.uuid || '';
@@ -209,15 +205,15 @@ app.get('/api/OfficialReleases', async (req, res) => {
     let data = { releases: [] };
 
     if (releasesArray.length > 0) {
-        data.releases = releasesArray.map(x => x.version).filter(x => x != '');
+        data.releases = releasesArray.filter(release => release.prerelease === false).map(x => x.version).filter(x => x != '');
     }
 
     log.info('{apiPath}: Version {versions} successfully delivered', { apiPath: 'OfficialReleases', versions: data.releases.map(value => value).join(', '), sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid, });
 
     res.send(data);
-});
+}));
 
-app.get('/api/Releases', async (req, res) => {
+app.get('/api/Releases', asyncRoute(async (req, res) => {
     const sourceIP = tools.getIPFromRequest(req);
     const rawUrl = tools.getRawURLFromRequest(req);
     const uuid = req.query.uuid || '';
@@ -231,9 +227,9 @@ app.get('/api/Releases', async (req, res) => {
     log.info('{apiPath}: Versions {versions} successfully delivered', { apiPath: 'Releases', versions: releases.map(value => value.version).join(', '), sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, uuid: uuid });
 
     res.send(releases);
-});
+}));
 
-app.post('/api/SaveBitmap', saveBitmapLimiter, async (req, res, next) => {
+app.post('/api/SaveBitmap', saveBitmapLimiter, asyncRoute(async (req, res, next) => {
     if (!validBitmap(req.body)) {
         return res.status(400).send('Not valid body');
     }
@@ -247,13 +243,19 @@ app.post('/api/SaveBitmap', saveBitmapLimiter, async (req, res, next) => {
     } catch (error) {
         next(error);
     }
-});
+}));
 
 app.use((error, req, res, next) => {
     log.error('Request failed: {error}', { error, sourceIP: tools.getIPFromRequest(req) });
     if (res.headersSent) return next(error);
-    const status = error.status === 400 || error.status === 413 ? error.status : 500;
-    res.status(status).send(status === 500 ? 'Internal server error' : 'Not valid body');
+    const messages = {
+        400: 'Not valid body',
+        413: 'Not valid body',
+        502: 'Upstream service unavailable',
+        504: 'Upstream service timed out',
+    };
+    const status = Object.hasOwn(messages, error.status) ? error.status : 500;
+    res.status(status).send(messages[status] || 'Internal server error');
 });
 
 if (require.main === module) {

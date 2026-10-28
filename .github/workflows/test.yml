@@ -21,3 +21,17 @@ jobs:
       # GeoIP and database calls are stubbed in the tests; no data download is needed.
       - run: npm ci --ignore-scripts
       - run: npm test
+      - run: npm audit --omit=dev
+
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build production image
+        run: docker build --file dockerfile --tag pixelit-api:test .
+      - name: Smoke-test production image without external network access
+        run: >-
+          docker run --rm --network none
+          --mount "type=bind,src=${PWD}/scripts/container-smoke.js,dst=/tmp/container-smoke.js,readonly"
+          pixelit-api:test node /tmp/container-smoke.js

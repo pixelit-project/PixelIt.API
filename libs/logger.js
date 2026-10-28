@@ -1,4 +1,3 @@
-const seq = require('seq-logging')
 let isSEQEnabled = true
 let seqAPiKey = null
 
@@ -14,10 +13,23 @@ if (!process.env.SEQ_APIKEY || process.env.SEQ_APIKEY.length == 0) {
     console.log(prepareLogForConsole('Info', 'SEQ_APIKEY set', null, new Date()))
 }
 
-const logger = new seq.Logger({
-    serverUrl: process.env.SEQ_SERVER,
-    apiKey: seqAPiKey,
-})
+// seq-logging 3 is an ES module. Keep the public logging API synchronous
+// while retaining events emitted before the dynamic import has completed.
+const logger = isSEQEnabled
+    ? import('seq-logging').then(({ Logger }) => new Logger({
+        serverUrl: process.env.SEQ_SERVER,
+        apiKey: seqAPiKey,
+    })).catch(error => {
+        console.error('[Seq] Initialization failed:', error.message);
+        return null;
+    })
+    : Promise.resolve(null);
+
+function emitToSeq(event) {
+    logger.then(instance => instance?.emit(event)).catch(error => {
+        console.error('[Seq] Logging failed:', error.message);
+    });
+}
 
 function enrichProperties(properties) {
     if (properties == null) {
@@ -49,12 +61,13 @@ function prepareLogForConsole(lvl, message, properties, dateTime) {
 }
 
 module.exports = {
+    close: async () => (await logger)?.close(),
     info: (message, properties) => {
         const dateTime = new Date()
         properties = enrichProperties(properties)
         console.log(prepareLogForConsole('Info', message, properties, dateTime))
         if (isSEQEnabled) {
-            logger.emit({
+            emitToSeq({
                 timestamp: dateTime,
                 level: 'Information',
                 messageTemplate: message,
@@ -67,7 +80,7 @@ module.exports = {
         properties = enrichProperties(properties)
         console.warn(prepareLogForConsole('Warn', message, properties, dateTime))
         if (isSEQEnabled) {
-            logger.emit({
+            emitToSeq({
                 timestamp: dateTime,
                 level: 'Warning',
                 messageTemplate: message,
@@ -80,7 +93,7 @@ module.exports = {
         properties = enrichProperties(properties)
         console.error(prepareLogForConsole('Error', message, properties, dateTime))
         if (isSEQEnabled) {
-            logger.emit({
+            emitToSeq({
                 timestamp: dateTime,
                 level: 'Error',
                 messageTemplate: message,

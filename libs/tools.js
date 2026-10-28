@@ -55,7 +55,7 @@ function cleanStats(releasesArray, statistics, officialBuilds) {
     let count = 0;
     let officialReleases = [];
     if (releasesArray.length > 0) {
-        officialReleases = releasesArray.map(x => x.version).filter(x => x != '');
+        officialReleases = releasesArray.filter(release => release.prerelease === false).map(x => x.version).filter(x => x != '');
     }
     for (const versionStat of statistics.versionStats) {
         if (!officialReleases.includes(versionStat.version)) {

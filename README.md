@@ -17,7 +17,8 @@ _____
 
 ## Installation
 
-Use docker-compose
+Use Docker Compose. The production image runs on Node.js 24 as the unprivileged
+`node` user and installs only production dependencies from `package-lock.json`.
 
 ```yml
 services:
@@ -107,7 +108,9 @@ settings match exact resolved client IPs, including normalized IPv4-mapped IPv6.
 
 ## Develop
 
-Install dependencies with `npm install` and run dev server with `npm run dev`.
+Use Node.js 24.15.0 or newer within the Node.js 24 series, or Node.js 26+.
+Install the locked dependencies with `npm ci` and run the dev server with
+`npm run dev`.
 
 ### Write requests
 
@@ -127,13 +130,50 @@ and integer `width`/`height` from 1 to 256, plus a `sensors` array of at most
 32 nonempty strings. Text fields are limited to 255 characters. `buildSection`
 is optional and may be empty. GeoIP data is resolved by the server.
 
-Run the regression tests with `npm test`. HTTP tests use a temporary loopback
-server; database and GeoIP calls are stubbed, so no credentials are needed.
+### Error responses
+
+All asynchronous API routes forward errors to the central error handler.
+Database failures return HTTP 500 instead of successful empty data. GitHub
+requests time out after 10 seconds; failures return HTTP 502 and timeouts return
+HTTP 504. Failed upstream requests are not cached as empty release lists.
+
+An empty database returns valid empty statistics and bitmap lists.
+`LastVersion` and `LastRelease` return `{}` when no stable release is available.
+`OfficialReleases` and `Releases` exclude prereleases; draft releases are ignored.
+
+### Tests and Docker build
+
+Run the regression tests with `npm test`. HTTP and Seq logging tests use temporary
+loopback servers; database, GitHub, and GeoIP calls are stubbed, so no credentials
+are needed. Run `npm audit --omit=dev` to check production dependencies.
+
+Build and smoke-test the production image locally:
+
+```sh
+docker build --file dockerfile --tag pixelit-api:test .
+docker run --rm --network none \
+  --mount "type=bind,src=${PWD}/scripts/container-smoke.js,dst=/tmp/container-smoke.js,readonly" \
+  pixelit-api:test node /tmp/container-smoke.js
+```
+
+The smoke test checks application startup, unprivileged execution, excluded
+development files, input validation, and controlled database connection errors.
+The Docker build context includes only production source, package files, and the license;
+local `.env` files, credentials, and `node_modules` are excluded. CI runs the
+regression tests and dependency audit before building and smoke-testing Docker.
 
 ## Changelog
 
 ### Unreleased
 
+- (o0shojo0o) Require successful regression tests, dependency auditing, Docker build, and container smoke tests before eligible Dependabot updates can be automatically merged.
+- (o0shojo0o) Switch Docker to Node.js 24, install locked production dependencies, run as an unprivileged user, and exclude local files from the build context.
+- (o0shojo0o) Update vulnerable dependencies within existing version ranges and declare supported Node.js versions.
+- (o0shojo0o) Fix Seq logging initialization for the ES module used by seq-logging 3.
+- (o0shojo0o) Forward asynchronous route errors and return proper error responses for database and GitHub failures.
+- (o0shojo0o) Add a 10-second GitHub request timeout and handle empty statistics, missing release metadata, and prerelease-only release lists.
+- (o0shojo0o) Preserve full release data when serving LastVersion and exclude prereleases from OfficialReleases.
+- (o0shojo0o) Extend regression tests and CI with dependency auditing and production container smoke tests.
 - (o0shojo0o) Document all environment variables, defaults, telemetry access checks, and rate-limit configuration.
 - (o0shojo0o) Trust forwarded client IPs only from proxies configured via `TRUSTED_PROXIES`.
 - (o0shojo0o) Normalize client IPs and group IPv6 rate limits by /56 subnet.

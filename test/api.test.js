@@ -10,7 +10,25 @@ stub('../libs/logger', { info: noop, warn: noop, error: noop });
 let save = async () => {};
 let saves = 0;
 let lookups = 0;
+let readFailure;
+let releases = [];
+let statistics = { buildStats: [], versionStats: [], matrixStats: [], countryStats: [], sensorStats: [] };
+const read = value => {
+    if (readFailure) throw readFailure;
+    return value;
+};
+stub('../libs/cache', { getOrSet: async (key, load) => load() });
+stub('../libs/gitRepo', {
+    getGitReleases: async () => read(releases),
+    getOfficialBuilds: async () => read(['official']),
+});
 stub('../libs/pixelItRepo', {
+    getBMPByID: async () => read(null),
+    getBMPByID_v2: async () => read(null),
+    getBMPNewst: async () => read(null),
+    getBMPAll: async () => read([]),
+    getUserMapData: async () => read([]),
+    getStatistics: async () => read(structuredClone(statistics)),
     saveBMP: async body => { saves++; await save(body); },
     saveTelemetry: async body => { saves++; await save(body); },
 });
@@ -19,6 +37,7 @@ process.env.API_GLOBAL_LIMIT_MAX = '1000';
 process.env.API_SAVEBITMAP_LIMIT_MAX = '1000';
 process.env.API_TELEMETRY_LIMIT_MAX = '1000';
 delete process.env.TRUSTED_PROXIES;
+process.env.TELEMETRY_USER_CHECK = 'false';
 const app = require('../main');
 const server = app.listen(0, '127.0.0.1');
 const ready = new Promise(resolve => server.once('listening', resolve));
@@ -27,7 +46,7 @@ after(() => new Promise(resolve => server.close(resolve)));
 async function request(path, body, headers = {}) {
     await ready;
     return new Promise((resolve, reject) => {
-        const req = http.request({ hostname: '127.0.0.1', port: server.address().port, path, method: 'POST', headers: { 'Content-Type': 'application/json', ...headers } }, res => {
+        const req = http.request({ hostname: '127.0.0.1', port: server.address().port, path, method: body === undefined ? 'GET' : 'POST', headers: { 'Content-Type': 'application/json', ...headers } }, res => {
             let text = '';
             res.on('data', chunk => { text += chunk; });
             res.on('end', () => resolve({ status: res.statusCode, text }));
@@ -108,5 +127,55 @@ test('rate limiter blocks spoofed exclusions and IPv6 address rotation', async (
         }
     } finally {
         app.set('trust proxy', previous);
+    }
+});
+
+test('release endpoints handle empty lists and prerelease-only lists', async () => {
+    for (const data of [[], [{ version: 'beta', prerelease: true }]]) {
+        releases = data;
+        for (const path of ['/api/LastVersion', '/api/LastRelease']) {
+            assert.deepEqual(await request(path), { status: 200, text: '{}' });
+        }
+        assert.deepEqual(JSON.parse((await request('/api/OfficialReleases')).text), { releases: [] });
+        assert.deepEqual(JSON.parse((await request('/api/Releases')).text), []);
+    }
+});
+
+test('LastVersion preserves full release data for other endpoints', async () => {
+    const release = { version: '3.3.3', prerelease: false, downloads: 12, downloadURL: 'release-url', fwdownloads: [], releaseNoteArray: ['fix'], readmeLink: 'readme', date: '2026-10-28' };
+    releases = [{ version: 'beta', prerelease: true }, structuredClone(release)];
+    assert.deepEqual(JSON.parse((await request('/api/LastVersion')).text), { version: '3.3.3', prerelease: false });
+    assert.deepEqual(JSON.parse((await request('/api/LastRelease')).text), release);
+    assert.deepEqual(JSON.parse((await request('/api/OfficialReleases')).text), { releases: ['3.3.3'] });
+    assert.deepEqual(releases[1], release);
+});
+
+test('an empty database produces valid statistics and empty bitmap responses', async () => {
+    releases = [];
+    const response = await request('/api/Statistics');
+    assert.equal(response.status, 200);
+    assert.deepEqual(JSON.parse(response.text), {
+        buildStats: [{ build: 'Custom', count: 0 }],
+        versionStats: [{ version: 'Self compiled', count: 0 }],
+        matrixStats: [], countryStats: [], sensorStats: [],
+    });
+    assert.deepEqual(await request('/api/GetBMPNewst'), { status: 200, text: '{}' });
+    assert.deepEqual(await request('/api/GetBMPAll'), { status: 200, text: '[]' });
+});
+
+test('all async read routes forward failures to the central error handler', async () => {
+    readFailure = new Error('private connection details');
+    try {
+        for (const path of [
+            '/api/GetBMPByID/1', '/api/GetBMPByID_v2/1', '/api/GetBMPNewst', '/api/GetBMPAll',
+            '/api/UserMap', '/api/UserMapData', '/api/Statistics', '/api/LastVersion',
+            '/api/LastRelease', '/api/OfficialReleases', '/api/Releases',
+        ]) assert.deepEqual(await request(path), { status: 500, text: 'Internal server error' }, path);
+        readFailure = Object.assign(new Error('request failed'), { status: 502 });
+        assert.deepEqual(await request('/api/LastRelease'), { status: 502, text: 'Upstream service unavailable' });
+        readFailure.status = 504;
+        assert.deepEqual(await request('/api/Statistics'), { status: 504, text: 'Upstream service timed out' });
+    } finally {
+        readFailure = undefined;
     }
 });
