@@ -1,0 +1,23 @@
+name: API tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      # GeoIP and database calls are stubbed in the tests; no data download is needed.
+      - run: npm ci --ignore-scripts
+      - run: npm test

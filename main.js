@@ -10,6 +10,7 @@ const cache = require('./libs/cache');
 const gitRepo = require('./libs/gitRepo');
 const geoip = require('fast-geoip');
 const repo = require('./libs/pixelItRepo');
+const { validBitmap, validTelemetry } = require('./libs/validation');
 const { apiLimiter, telemetryLimiter, saveBitmapLimiter } = require('./libs/rateLimit');
 
 const port = process.env.PORT || 8080;
@@ -17,6 +18,10 @@ const telemetryUserCheck = process.env.TELEMETRY_USER_CHECK ? process.env.TELEME
 
 // defining the Express app
 const app = express();
+// Only explicitly configured proxy addresses may supply the client IP.
+app.set('trust proxy', process.env.TRUSTED_PROXIES
+    ? process.env.TRUSTED_PROXIES.split(',').map(value => value.trim()).filter(Boolean)
+    : false);
 app.use(useragent.express());
 // adding Helmet to enhance your Rest API's security
 app.use(helmet());
@@ -93,30 +98,21 @@ app.get('/api/GetBMPAll', async (req, res) => {
     res.send(bmps);
 });
 
-app.post('/api/Telemetry', telemetryLimiter, async (req, res) => {
-    const sourceIP = tools.getIPFromRequest(req);
-    const rawUrl = tools.getRawURLFromRequest(req);
-    const client = tools.getClientFromRequest(req);
-
-    if (!req.body) {
-        log.error('{apiPath}: No body found', { apiPath: 'Telemetry', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, client, });
-        res.status(400).send('Not valid body');
-        return;
+app.post('/api/Telemetry', telemetryLimiter, async (req, res, next) => {
+    if (!validTelemetry(req.body)) {
+        return res.status(400).send('Not valid body');
     }
-
-    if (!req.body.uuid || req.body.uuid.length != 40) {
-        log.error('{apiPath}: UUID is not valide', { apiPath: 'Telemetry', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, client, });
-        res.status(400).send('Not valid body');
-        return;
+    try {
+        const telemetry = { ...req.body, geoip: await geoip.lookup(tools.getIPFromRequest(req)) };
+        await repo.saveTelemetry(telemetry);
+        log.info('{apiPath}: Successfully saved', {
+            apiPath: 'Telemetry', uuid: telemetry.uuid, sourceIP: tools.getIPFromRequest(req),
+            client: tools.getClientFromRequest(req), rateLimit: req.rateLimit,
+        });
+        res.sendStatus(200);
+    } catch (error) {
+        next(error);
     }
-
-    (async () => {
-        req.body.geoip = await geoip.lookup(sourceIP);
-        log.info(`{apiPath}: ${JSON.stringify(req.body)}`, { apiPath: 'Telemetry', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, client, });
-        repo.saveTelemetry(req.body);
-    })();
-
-    res.sendStatus(200);
 });
 
 app.get(['/api/UserMap', '/api/UserMapData'], async (req, res) => {
@@ -237,28 +233,33 @@ app.get('/api/Releases', async (req, res) => {
     res.send(releases);
 });
 
-app.post('/api/SaveBitmap', saveBitmapLimiter, async (req, res) => {
-    const sourceIP = tools.getIPFromRequest(req);
-    const rawUrl = tools.getRawURLFromRequest(req);
-    const geoipData = await geoip.lookup(sourceIP);
-    const client = tools.getClientFromRequest(req);
-    const uuid = req.query.uuid || '';
-
-    if (!req.body) {
-        log.error('{apiPath}: No body found', { apiPath: 'SaveBitmap', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, geoip: geoipData, client, uuid: uuid, });
-        res.status(400).send('Not valid body');
-        return;
+app.post('/api/SaveBitmap', saveBitmapLimiter, async (req, res, next) => {
+    if (!validBitmap(req.body)) {
+        return res.status(400).send('Not valid body');
     }
-
-    (async () => {
-        log.info(`{apiPath}: ${JSON.stringify(req.body)}`, { apiPath: 'SaveBitmap', sourceIP, rawUrl, useragent: req.useragent, rateLimit: req.rateLimit, geoip: geoipData, client, });
-        repo.saveBMP(req.body);
-    })();
-
-    res.sendStatus(200);
+    try {
+        await repo.saveBMP({ ...req.body });
+        log.info('{apiPath}: Successfully saved', {
+            apiPath: 'SaveBitmap', sourceIP: tools.getIPFromRequest(req),
+            client: tools.getClientFromRequest(req), rateLimit: req.rateLimit,
+        });
+        res.sendStatus(200);
+    } catch (error) {
+        next(error);
+    }
 });
 
-// starting the server
-app.listen(port, () => {
-    log.info('API listening on port {port}', { port, });
+app.use((error, req, res, next) => {
+    log.error('Request failed: {error}', { error, sourceIP: tools.getIPFromRequest(req) });
+    if (res.headersSent) return next(error);
+    const status = error.status === 400 || error.status === 413 ? error.status : 500;
+    res.status(status).send(status === 500 ? 'Internal server error' : 'Not valid body');
 });
+
+if (require.main === module) {
+    app.listen(port, () => {
+        log.info('API listening on port {port}', { port });
+    });
+}
+
+module.exports = app;

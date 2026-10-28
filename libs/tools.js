@@ -1,9 +1,36 @@
-function getIPFromRequest(req) {
-    let ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress
-    if (ip.substr(0, 7) == '::ffff:') {
-        ip = ip.substr(7)
+const { isIP } = require('node:net');
+
+function normalizeIP(ip) {
+    if (isIP(ip) !== 6) return ip;
+    const canonical = new URL(`http://[${ip}]/`).hostname.slice(1, -1);
+    const [left, right = ''] = canonical.split('::');
+    const start = left ? left.split(':') : [];
+    const end = right ? right.split(':') : [];
+    const words = canonical.includes('::')
+        ? [...start, ...Array(8 - start.length - end.length).fill('0'), ...end]
+        : start;
+    const values = words.map(word => parseInt(word, 16));
+    if (values.slice(0, 5).every(value => value === 0) && values[5] === 65535) {
+        return [values[6] >> 8, values[6] & 255, values[7] >> 8, values[7] & 255].join('.');
     }
-    return ip
+    return canonical;
+}
+
+function getIPFromRequest(req) {
+    return normalizeIP(req.ip || req.socket?.remoteAddress || req.connection?.remoteAddress);
+}
+
+// Group IPv6 clients by /56 so rotating interface addresses cannot reset limits.
+function getRateLimitKey(req) {
+    const ip = getIPFromRequest(req);
+    if (isIP(ip) !== 6) return ip;
+    const [left, right = ''] = ip.split('::');
+    const start = left ? left.split(':') : [];
+    const end = right ? right.split(':') : [];
+    const words = ip.includes('::')
+        ? [...start, ...Array(8 - start.length - end.length).fill('0'), ...end]
+        : start;
+    return `${words.slice(0, 3).map(word => parseInt(word, 16).toString(16)).join(':')}:${(parseInt(words[3], 16) & 0xff00).toString(16)}::/56`;
 }
 
 function getRawURLFromRequest(req) {
@@ -56,6 +83,8 @@ function cleanStats(releasesArray, statistics, officialBuilds) {
 }
 
 module.exports = {
+    normalizeIP,
+    getRateLimitKey,
     getIPFromRequest,
     getRawURLFromRequest,
     getClientFromRequest,

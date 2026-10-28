@@ -142,7 +142,8 @@ async function saveTelemetry(telemetry) {
             ]
         )
     } catch (error) {
-        log.error('saveStats: {error}', { error: error })
+        log.error('saveTelemetry: {error}', { error: error });
+        throw error;
     }
 };
 
@@ -170,12 +171,12 @@ async function saveBMP(bmp) {
             ]
         )
     } catch (error) {
-        log.error('saveBMP: {error}', { error: error, bmp })
+        log.error('saveBMP: {error}', { error: error });
+        throw error;
     }
 
     async function getUserIDByName(userName) {
         const result = await connection.query("Select id from pixel_it_user where name = ? and aktiv = true", [userName])
-        console.log(JSON.stringify(result))
         return result[0][0]?.id;
     }
 

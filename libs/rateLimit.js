@@ -4,17 +4,17 @@ const tools = require('./tools');
 
 let globelLimitExclude = [];
 if (process.env.API_GLOBAL_LIMIT_EXCLUDE) {
-    globelLimitExclude = process.env.API_GLOBAL_LIMIT_EXCLUDE.split(',').map(x => x.trim());
+    globelLimitExclude = process.env.API_GLOBAL_LIMIT_EXCLUDE.split(',').map(x => tools.normalizeIP(x.trim()));
 }
 
 let telemetryLimitExclude = [];
 if (process.env.API_TELEMETRY_LIMIT_EXCLUDE) {
-    telemetryLimitExclude = process.env.API_TELEMETRY_LIMIT_EXCLUDE.split(',').map(x => x.trim());
+    telemetryLimitExclude = process.env.API_TELEMETRY_LIMIT_EXCLUDE.split(',').map(x => tools.normalizeIP(x.trim()));
 }
 
 let saveBitmapLimitExclude = [];
 if (process.env.API_SAVEBITMAP_LIMIT_EXCLUDE) {
-    saveBitmapLimitExclude = process.env.API_SAVEBITMAP_LIMIT_EXCLUDE.split(',').map(x => x.trim());
+    saveBitmapLimitExclude = process.env.API_SAVEBITMAP_LIMIT_EXCLUDE.split(',').map(x => tools.normalizeIP(x.trim()));
 }
 
 
@@ -23,7 +23,7 @@ const apiLimiter = rateLimit({
     max: Number(process.env.API_GLOBAL_LIMIT_MAX) || 100,
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req, response) => tools.getIPFromRequest(req),
+    keyGenerator: (req, response) => tools.getRateLimitKey(req),
     skip: (req, response) => globelLimitExclude.includes(tools.getIPFromRequest(req)),
     handler: (req, response, next, options) => {
         response.status(options.statusCode).send(options.message);
@@ -38,7 +38,7 @@ const telemetryLimiter = rateLimit({
     max: Number(process.env.API_TELEMETRY_LIMIT_MAX) || 10,
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req, response) => tools.getIPFromRequest(req),
+    keyGenerator: (req, response) => tools.getRateLimitKey(req),
     skip: (req, response) => telemetryLimitExclude.includes(tools.getIPFromRequest(req)),
     handler: (req, response, next, options) => {
         response.status(options.statusCode).send(options.message);
@@ -53,7 +53,7 @@ const saveBitmapLimiter = rateLimit({
     max: Number(process.env.API_SAVEBITMAP_LIMIT_MAX) || 10,
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req, response) => tools.getIPFromRequest(req),
+    keyGenerator: (req, response) => tools.getRateLimitKey(req),
     skip: (req, response) => saveBitmapLimitExclude.includes(tools.getIPFromRequest(req)),
     handler: (req, response, next, options) => {
         response.status(options.statusCode).send(options.message);
