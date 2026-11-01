@@ -58,6 +58,8 @@ async function getGitReleases() {
                         downloads: asset.download_count,
                     };
                 }
+                fwdownload.fileName = asset.name;
+                fwdownload.downloadURL = asset.browser_download_url;
                 fwdownload.name = fwdownload.name.replace(".bin", "").replaceAll("_", " ").toUpperCase();
                 data.fwdownloads.push(fwdownload);
             }

@@ -56,3 +56,19 @@ test('GitHub failures propagate as upstream errors instead of cacheable empty da
         }
     }
 });
+
+
+test('firmware downloads preserve original filenames and browser URLs alongside existing labels', async () => {
+    const filename = 'firmware_v2.7.0_ESP8266_d1_mini.bin';
+    const url = `https://github.com/pixelit-project/PixelIt/releases/download/2.7.0/${filename}`;
+    get = async () => ({ headers: {}, data: [{
+        name: 'Release 2.7.0', tag_name: '2.7.0', prerelease: false,
+        assets: [{ name: filename, browser_download_url: url, download_count: 7 }],
+    }] });
+    const [release] = await repo.getGitReleases();
+    assert.equal(release.version, 'Release 2.7.0');
+    assert.equal(release.downloads, 7);
+    assert.deepEqual(release.fwdownloads, [{
+        name: 'ESP8266 D1 MINI', downloads: 7, fileName: filename, downloadURL: url,
+    }]);
+});

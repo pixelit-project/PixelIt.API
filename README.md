@@ -141,6 +141,18 @@ An empty database returns valid empty statistics and bitmap lists.
 `LastVersion` and `LastRelease` return `{}` when no stable release is available.
 `OfficialReleases` and `Releases` exclude prereleases; draft releases are ignored.
 
+### Firmware download metadata
+
+`/api/Releases` and `/api/LastRelease` expose `fwdownloads` entries with the existing
+`name` (display label) and `downloads` fields, plus `fileName` (original asset
+filename) and `downloadURL` (GitHub browser download URL). Clients should match the
+exact hardware filename and exclude `.full-upgrade.bin` images for OTA uploads.
+Only show a direct download when a matching asset and its URL are present; older
+API deployments may omit these fields. Deploy this API update before the WebUI
+that uses direct firmware downloads. Existing release caching (600 seconds) also
+covers this metadata; no extra upstream request is made. `/api/LastVersion`
+continues to omit `fwdownloads`, keeping device version checks small.
+
 ### Tests and Docker build
 
 Run the regression tests with `npm test`. HTTP and Seq logging tests use temporary
