@@ -192,7 +192,7 @@ deployment requirements and endpoints.
 
 ## Changelog
 
-### Unreleased
+### 2.0.0 (2026-11-01)
 
 - (o0shojo0o) Add public icon reports and a dark-mode admin UI for reviewing reports, hiding icons and restoring them with a transactional audit history.
 - (o0shojo0o) Add aggregate telemetry statistics for recent device activity, firmware versions, hardware types and matrix configurations.
