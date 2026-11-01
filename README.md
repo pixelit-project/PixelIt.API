@@ -192,9 +192,12 @@ deployment requirements and endpoints.
 
 ## Changelog
 
-### 2.0.0 (2026-11-01)
+### 2.0.1 (2026-11-01)
 
 - (o0shojo0o) Serve a minimal login page before authentication; protect dashboard HTML and JavaScript with the admin session.
+
+### 2.0.0 (2026-11-01)
+
 - (o0shojo0o) Return to the login page after logout or session expiry and verify dashboard access is revoked in regression tests.
 - (o0shojo0o) Add public icon reports and a dark-mode admin UI for reviewing reports, hiding icons and restoring them with a transactional audit history.
 - (o0shojo0o) Add aggregate telemetry statistics for recent device activity, firmware versions, hardware types and matrix configurations.
