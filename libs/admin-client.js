@@ -24,16 +24,7 @@ function showMessage(text, error = false) {
 
 function showLogin() {
     sessionGeneration++;
-    showView('reports');
-    getElement('reports-tab').disabled = true;
-    getElement('statistics-tab').disabled = true;
-    clearStatistics();
-    reports = [];
-    iconPreviews.clear();
-    getElement('reports').replaceChildren();
-    getElement('panel').hidden = true;
-    getElement('refresh').hidden = true;
-    getElement('login').hidden = false;
+    window.location.replace('/admin/');
 }
 
 async function requestAdmin(path, body) {
@@ -324,7 +315,6 @@ async function loadReports(reset = true) {
         reports = reset ? result : [...new Map([...reports, ...result].map((report) => [report.id, report])).values()];
         beforeReportId = result.at(-1)?.id;
         getElement('more').hidden = result.length < 50;
-        getElement('login').hidden = true;
         getElement('panel').hidden = false;
         getElement('refresh').hidden = false;
         getElement('reports-tab').disabled = false;
@@ -342,22 +332,6 @@ async function loadReports(reset = true) {
     }
 }
 
-async function login(event) {
-    event.preventDefault();
-    const button = getElement('login').querySelector('button');
-    button.disabled = true;
-    try {
-        await requestAdmin('login', {
-            password: getElement('password').value,
-        });
-        getElement('password').value = '';
-        await loadReports();
-    } catch (error) {
-        showMessage(error.message, true);
-    } finally {
-        button.disabled = false;
-    }
-}
 
 async function logout() {
     try {
@@ -458,7 +432,6 @@ function showView(view) {
 }
 
 // Bind page controls after all handlers have been defined.
-getElement('login').onsubmit = login;
 getElement('logout').onclick = logout;
 getElement('statistics-logout').onclick = logout;
 getElement('refresh').onclick = () => (currentView === 'statistics' ? loadStatistics() : loadReports());

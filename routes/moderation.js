@@ -100,11 +100,19 @@ function registerModerationRoutes(app, repo, cache, statisticsRepo = require('..
     }
 
     function sendAdminPage(req, res) {
-        res.type('html').send(fs.readFileSync(path.join(__dirname, '..', 'libs', 'admin.html'), 'utf8'));
+        const expiresAt = sessions.get(getSessionToken(req));
+        const authenticated = expiresAt && expiresAt > Date.now();
+        const fileName = authenticated ? 'admin.html' : 'admin-login.html';
+        res.set('Vary', 'Cookie');
+        res.type('html').send(fs.readFileSync(path.join(__dirname, '..', 'libs', fileName), 'utf8'));
     }
 
     function sendAdminScript(req, res) {
         res.type('js').send(fs.readFileSync(path.join(__dirname, '..', 'libs', 'admin-client.js'), 'utf8'));
+    }
+
+    function sendLoginScript(req, res) {
+        res.type('js').send(fs.readFileSync(path.join(__dirname, '..', 'libs', 'admin-login.js'), 'utf8'));
     }
 
     function sendAdminStyles(req, res) {
@@ -271,7 +279,8 @@ function registerModerationRoutes(app, repo, cache, statisticsRepo = require('..
     // Public reporting is limited independently from uploads and administrator access.
     app.get(/^\/admin$/, (req, res) => res.redirect('/admin/'));
     app.get('/admin/', checkAdminOrigin, sendAdminPage);
-    app.get('/admin/app.js', checkAdminOrigin, sendAdminScript);
+    app.get('/admin/app.js', checkAdminOrigin, requireAdminSession, sendAdminScript);
+    app.get('/admin/login.js', checkAdminOrigin, sendLoginScript);
     app.get('/admin/style.css', checkAdminOrigin, sendAdminStyles);
     app.post('/api/reports', reportLimiter, createReport);
 

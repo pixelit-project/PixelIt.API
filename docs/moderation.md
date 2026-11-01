@@ -126,3 +126,10 @@ activity series. Firmware, hardware type and matrix distributions cover the last
 30-day window, so displayed groups may add up to less than 100 percent. No device
 UUIDs, IP addresses or geographic positions are returned. Data is loaded when the
 statistics tab opens or the refresh button is used; there is no background polling.
+
+## Login page visibility
+
+Without a valid session, `/admin/` serves only the login form. The dashboard HTML
+and `/admin/app.js` are available only with a valid admin session. Login code and
+shared styles remain public; all data endpoints independently enforce admin access.
+After logout or session expiry, the browser returns to the login page.

@@ -810,3 +810,24 @@ input::placeholder {
         grid-template-columns: 1fr;
     }
 }
+
+.login-page main {
+    margin: 0;
+    padding: 24px;
+    max-width: none;
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+}
+.login-page .login-card {
+    margin: 0;
+    width: 100%;
+}
+.login-page h1 {
+    font-size: 26px;
+    margin: 0;
+}
+#login-message {
+    color: var(--ink);
+    font-size: 13px;
+}

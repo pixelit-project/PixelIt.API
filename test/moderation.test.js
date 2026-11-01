@@ -42,6 +42,12 @@ async function req(path, body, headers = {}) {
     });
 }
 test('admin session, CSRF, logout, validation and public reports', async () => {
+    const publicPage = await req('/admin/');
+    assert.equal(publicPage.status, 200);
+    assert.match(await publicPage.text(), /PixelIt Admin/);
+    assert.doesNotMatch(await (await req('/admin/')).text(), /statistics-tab|Icon-Meldungen|telemetry-/);
+    assert.equal((await req('/admin/app.js')).status, 401);
+    assert.equal((await req('/admin/login.js')).status, 200);
     assert.equal((await req('/api/admin/reports')).status, 401);
     assert.equal((await req('/api/admin/login', { password: 'long-test-password' })).status, 403);
     const origin = { Origin: 'https://example.test' };
@@ -51,6 +57,8 @@ test('admin session, CSRF, logout, validation and public reports', async () => {
     const set = login.headers.get('set-cookie');
     assert.match(set, /HttpOnly; Secure; SameSite=Strict/);
     const headers = { ...origin, Cookie: set.split(';')[0] };
+    assert.match(await (await req('/admin/', undefined, headers)).text(), /statistics-tab/);
+    assert.equal((await req('/admin/app.js', undefined, headers)).status, 200);
     assert.equal((await req('/api/admin/reports', undefined, headers)).status, 200);
     assert.equal(
         (await req('/api/admin/reports/1/approve', {}, { Cookie: headers.Cookie, Origin: 'https://evil.test' })).status,
@@ -63,6 +71,8 @@ test('admin session, CSRF, logout, validation and public reports', async () => {
     assert.equal(invalidations, 1);
     assert.equal((await req('/api/admin/logout', {}, headers)).status, 204);
     assert.equal((await req('/api/admin/reports', undefined, headers)).status, 401);
+    assert.equal((await req('/admin/app.js', undefined, headers)).status, 401);
+    assert.doesNotMatch(await (await req('/admin/', undefined, headers)).text(), /statistics-tab/);
     assert.equal((await req('/api/reports', { iconId: 1, reason: '  ' })).status, 400);
     assert.equal((await req('/api/reports', { iconId: 1, reason: 'Duplicate icon' })).status, 202);
     assert.equal(reports, 1);

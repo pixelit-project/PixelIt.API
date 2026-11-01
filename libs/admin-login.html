@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="de">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width" />
+        <title>PixelIt · Anmeldung</title>
+        <link rel="stylesheet" href="/admin/style.css" />
+    </head>
+    <body class="login-page">
+        <main>
+            <form id="login" class="login-card">
+                <span class="login-symbol" aria-hidden="true">▦</span>
+                <h1>PixelIt Admin</h1>
+                <label for="password">Passwort</label>
+                <input id="password" type="password" autocomplete="current-password" required maxlength="1024" />
+                <button class="primary">Anmelden</button>
+                <p id="login-message" role="status" aria-live="polite" hidden></p>
+            </form>
+        </main>
+        <script src="/admin/login.js" defer></script>
+    </body>
+</html>
