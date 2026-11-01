@@ -8,6 +8,9 @@ async function main() {
     for (const path of ['node_modules/nodemon', '.env', '.git', 'test']) {
         assert.equal(existsSync(`/usr/src/app/${path}`), false, `${path} must not be in the production image`);
     }
+    for (const name of ['bitmaps', 'telemetry', 'statistics', 'releases', 'moderation']) {
+        assert.equal(existsSync(`/usr/src/app/routes/${name}.js`), true, `${name} routes must be packaged`);
+    }
     const app = require('/usr/src/app/main');
     const server = app.listen(0, '127.0.0.1');
     await once(server, 'listening');

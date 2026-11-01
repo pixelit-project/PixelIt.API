@@ -8,6 +8,8 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --chown=node:node main.js LICENSE ./
 COPY --chown=node:node libs ./libs
+COPY --chown=node:node routes ./routes
+COPY --chown=node:node migrations ./migrations
 
 USER node
 EXPOSE 8080

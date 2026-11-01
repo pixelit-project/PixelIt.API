@@ -39,8 +39,11 @@ services:
       MYSQL_HOST: host
       MYSQL_DATABASE: database
       MYSQL_USER: user
-      MYSQL_PASSWORD: password
-      GITHUB_TOKEN: token
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      # Optional admin access (HTTPS origin, no trailing slash):
+      # ADMIN_ORIGIN: https://pixelit.bastelbunker.de
+      # ADMIN_PASSWORD: ${PIXELIT_ADMIN_PASSWORD}
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
       API_GLOBAL_LIMIT_WINDOW_MS: 300000
       API_GLOBAL_LIMIT_MAX: 100
       API_TELEMETRY_LIMIT_WINDOW_MS: 900000
@@ -51,7 +54,7 @@ services:
       API_TELEMETRY_LIMIT_EXCLUDE: "192.168.0.1, 192.168.2.1, 192.168.3.1, ::1"
       API_SAVEBITMAP_LIMIT_EXCLUDE: "192.168.0.1, 192.168.2.1, 192.168.3.1, ::1"
       SEQ_SERVER: http://seqserver:5341
-      SEQ_APIKEY: xxxxxxxxxxxx
+      SEQ_APIKEY: ${SEQ_APIKEY}
 ```
 <!--
 ### **WORK IN PROGRESS**
@@ -174,7 +177,30 @@ The Docker build context includes only production source, package files, and the
 local `.env` files, credentials, and `node_modules` are excluded. CI runs the
 regression tests and dependency audit before building and smoke-testing Docker.
 
+## Icon reports and administration
+
+The API includes a dark-mode admin page at `/admin/` for reviewing icon reports,
+hiding or restoring icons, and viewing aggregate device telemetry statistics.
+
+The API creates the moderation tables automatically before accepting requests.
+The MySQL account needs `CREATE` permission in addition to its existing access.
+Enable the admin page with `ADMIN_ORIGIN` (public HTTPS origin, no trailing slash)
+and `ADMIN_PASSWORD` (16–1024 characters). No manual hash generation is needed.
+
+See [moderation setup and API reference](docs/moderation.md) for setup,
+deployment requirements and endpoints.
+
 ## Changelog
+
+### Unreleased
+
+- (o0shojo0o) Add public icon reports and a dark-mode admin UI for reviewing reports, hiding icons and restoring them with a transactional audit history.
+- (o0shojo0o) Add aggregate telemetry statistics for recent device activity, firmware versions, hardware types and matrix configurations.
+- (o0shojo0o) Configure admin access through `ADMIN_PASSWORD` and `ADMIN_ORIGIN`, with internal password hashing, expiring sessions and CSRF protection.
+- (o0shojo0o) Run database migrations automatically before startup and include migration and route files in Docker images.
+- (o0shojo0o) Add configurable reporting, login, admin-read and admin-action rate limits, operational logging and bitmap cache invalidation.
+- (o0shojo0o) Group existing endpoints into route modules while preserving their URLs and responses; document code-style conventions in `AGENTS.md`.
+- (o0shojo0o) Add regression coverage for admin access, moderation, rate limits, log redaction, telemetry aggregates and migrations.
 
 ### 1.9.1 (2026-11-01)
 

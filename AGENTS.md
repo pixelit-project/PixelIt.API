@@ -43,3 +43,37 @@ sources rather than assuming their behavior.
   contracts or validation. Distinguish mocked tests from real integration checks.
 - Keep README environment variables and deployment guidance aligned with behavior.
   Documentation-only edits do not require service tests. Report checks and gaps.
+
+## Code structure and style
+
+- Follow the existing CommonJS style: four-space indentation, readable blocks,
+  descriptive variable names and named functions. Export named functions at the
+  bottom of their files. Do not compress handlers, conditionals or multiple
+  statements onto one line, and avoid unexplained single-letter names.
+- Group HTTP routes by purpose in `routes/`: `bitmaps.js`, `telemetry.js`,
+  `statistics.js`, `releases.js` and `moderation.js`. Keep `main.js` focused on
+  configuration, shared middleware, route registration, central error handling
+  and startup. Do not create a separate file for every endpoint.
+- Keep database queries in repository modules under `libs/`. Format SQL over
+  multiple lines and use parameters for input values. Keep route handlers,
+  persistence and browser UI responsibilities separate.
+- Define API rate limits centrally in `libs/rateLimit.js`, following the existing
+  configurable limiter pattern. Preserve the global limiter and apply appropriate
+  endpoint/group limits to new functionality. Log exceeded limits, and keep proxy
+  trust and IPv6 client grouping consistent. Document defaults and configuration.
+- Use the existing `libs/logger.js` console/Seq logger with structured message
+  templates. Log significant operations, validation failures, authentication and
+  authorization failures, moderation decisions, rate limits and migration progress
+  or failures. Include useful operation names, IDs, client IP and rate-limit context
+  where applicable. Never log passwords, session tokens, cookies, report text,
+  bound SQL values or unrestricted database errors.
+- Preserve endpoint URLs, aliases, middleware order, status codes, response formats,
+  cache behavior and telemetry access checks when reorganizing code. Reuse
+  `libs/asyncRoute.js` for the legacy async route error-forwarding contract.
+- Keep the README concise: essential setup and links. Put detailed endpoint,
+  operational and deployment documentation in `docs/`. Include new runtime folders
+  in the Docker image and its build allowlist when moving source files.
+
+- The admin UI defaults to dark mode, using black/gray surfaces and blue accents.
+  Keep form controls, dialogs, status indicators and focus states consistent with
+  that palette and readable on dark backgrounds.

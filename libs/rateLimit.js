@@ -63,9 +63,86 @@ const saveBitmapLimiter = rateLimit({
     }
 });
 
+// Moderation limits deliberately have no IP exemptions, including for admin clients.
+function getPositiveLimit(value, defaultValue) {
+    const number = Number(value);
+    return Number.isSafeInteger(number) && number > 0 ? number : defaultValue;
+}
+
+const reportLimiter = rateLimit({
+    windowMs: getPositiveLimit(process.env.API_REPORT_LIMIT_WINDOW_MS, 15 * 60 * 1000),
+    max: getPositiveLimit(process.env.API_REPORT_LIMIT_MAX, 5),
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req, response) => tools.getRateLimitKey(req),
+    handler: (req, response, next, options) => {
+        response.status(options.statusCode).send(options.message);
+        const sourceIP = tools.getIPFromRequest(req);
+        log.warn('Report API RateLimit reached from: {sourceIP}', {
+            sourceIP,
+            useragent: req.useragent,
+            rateLimit: req.rateLimit,
+        });
+    },
+});
+
+const adminLoginLimiter = rateLimit({
+    windowMs: getPositiveLimit(process.env.API_ADMIN_LOGIN_LIMIT_WINDOW_MS, 15 * 60 * 1000),
+    max: getPositiveLimit(process.env.API_ADMIN_LOGIN_LIMIT_MAX, 5),
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req, response) => tools.getRateLimitKey(req),
+    handler: (req, response, next, options) => {
+        response.status(options.statusCode).send(options.message);
+        const sourceIP = tools.getIPFromRequest(req);
+        log.warn('Admin login API RateLimit reached from: {sourceIP}', {
+            sourceIP,
+            useragent: req.useragent,
+            rateLimit: req.rateLimit,
+        });
+    },
+});
+
+const adminReadLimiter = rateLimit({
+    windowMs: getPositiveLimit(process.env.API_ADMIN_READ_LIMIT_WINDOW_MS, 5 * 60 * 1000),
+    max: getPositiveLimit(process.env.API_ADMIN_READ_LIMIT_MAX, 60),
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req, response) => tools.getRateLimitKey(req),
+    handler: (req, response, next, options) => {
+        response.status(options.statusCode).send(options.message);
+        const sourceIP = tools.getIPFromRequest(req);
+        log.warn('Admin read API RateLimit reached from: {sourceIP}', {
+            sourceIP,
+            useragent: req.useragent,
+            rateLimit: req.rateLimit,
+        });
+    },
+});
+
+const adminActionLimiter = rateLimit({
+    windowMs: getPositiveLimit(process.env.API_ADMIN_ACTION_LIMIT_WINDOW_MS, 15 * 60 * 1000),
+    max: getPositiveLimit(process.env.API_ADMIN_ACTION_LIMIT_MAX, 30),
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req, response) => tools.getRateLimitKey(req),
+    handler: (req, response, next, options) => {
+        response.status(options.statusCode).send(options.message);
+        const sourceIP = tools.getIPFromRequest(req);
+        log.warn('Admin action API RateLimit reached from: {sourceIP}', {
+            sourceIP,
+            useragent: req.useragent,
+            rateLimit: req.rateLimit,
+        });
+    },
+});
+
 module.exports = {
     apiLimiter,
     telemetryLimiter,
     saveBitmapLimiter,
-}
-
+    reportLimiter,
+    adminLoginLimiter,
+    adminReadLimiter,
+    adminActionLimiter,
+};

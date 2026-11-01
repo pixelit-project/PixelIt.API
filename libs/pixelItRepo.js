@@ -34,7 +34,7 @@ async function getBMPByID(id) {
                         join pixel_it_user b on (a.userid  = b.id)
                         left outer join pixel_it_hitcount c on (a.id = c.pixel_id) 
                         where
-                            a.id = ?`,
+                            a.id = ? AND NOT EXISTS (SELECT 1 FROM pixel_it_reports r WHERE r.icon_id = a.id AND r.status = 'approved')`,
             id
         );
         if (result[0][0]) {
@@ -81,7 +81,7 @@ async function getBMPAll() {
                             IFNULL(c.hitcount,0) as hitCount
                         from pixel_it_bitmap a 
                         join pixel_it_user b on (a.userid  = b.id)
-                        left outer join pixel_it_hitcount c on (a.id = c.pixel_id)`)
+                        left outer join pixel_it_hitcount c on (a.id = c.pixel_id) WHERE NOT EXISTS (SELECT 1 FROM pixel_it_reports r WHERE r.icon_id = a.id AND r.status = 'approved')`)
 
         for (const bmp of result[0]) {
             bmp.animated = tools.mysqlToBool(bmp.animated)
@@ -112,7 +112,7 @@ async function getBMPNewst() {
                         join pixel_it_user b on (a.userid  = b.id)
                         left outer join pixel_it_hitcount c on (a.id = c.pixel_id) 
                         where
-                            a.id = (select max(id) from pixel_it_bitmap)`)
+                            NOT EXISTS (SELECT 1 FROM pixel_it_reports r WHERE r.icon_id = a.id AND r.status = 'approved') ORDER BY a.id DESC LIMIT 1`)
 
         if (!result[0][0]) return null;
         result[0][0].animated = tools.mysqlToBool(result[0][0].animated)
@@ -247,6 +247,55 @@ async function getStatistics() {
     }
 };
 
+// Only aggregate telemetry is exposed to administrators, never device UUIDs or locations.
+async function getAdminStatistics() {
+    const [summary] = await connection.query(`
+        SELECT COUNT(*) AS total,
+               COALESCE(SUM(last_change >= CURRENT_TIMESTAMP - INTERVAL 1 DAY), 0) AS active24h,
+               COALESCE(SUM(last_change >= CURRENT_TIMESTAMP - INTERVAL 7 DAY), 0) AS active7d,
+               COALESCE(SUM(last_change >= CURRENT_TIMESTAMP - INTERVAL 30 DAY), 0) AS active30d,
+               MAX(last_change) AS lastSeen
+        FROM pixel_it_telemetry
+    `);
+    const [versions] = await connection.query(`
+        SELECT COALESCE(NULLIF(version, ''), 'Unbekannt') AS label, COUNT(*) AS count
+        FROM pixel_it_telemetry
+        WHERE last_change >= CURRENT_TIMESTAMP - INTERVAL 30 DAY
+        GROUP BY label
+        ORDER BY count DESC, label ASC
+        LIMIT 8
+    `);
+    const [hardware] = await connection.query(`
+        SELECT COALESCE(NULLIF(type, ''), 'Unbekannt') AS label, COUNT(*) AS count
+        FROM pixel_it_telemetry
+        WHERE last_change >= CURRENT_TIMESTAMP - INTERVAL 30 DAY
+        GROUP BY label
+        ORDER BY count DESC, label ASC
+        LIMIT 8
+    `);
+    const [matrices] = await connection.query(`
+        SELECT COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(matrix, '$.name')), ''), 'Unbekannt') AS label,
+               COUNT(*) AS count
+        FROM pixel_it_telemetry
+        WHERE last_change >= CURRENT_TIMESTAMP - INTERVAL 30 DAY
+        GROUP BY label
+        ORDER BY count DESC, label ASC
+        LIMIT 8
+    `);
+    const totals = summary[0] || {};
+    return {
+        total: Number(totals.total || 0),
+        active24h: Number(totals.active24h || 0),
+        active7d: Number(totals.active7d || 0),
+        active30d: Number(totals.active30d || 0),
+        lastSeen: totals.lastSeen || null,
+        versions: versions.map(row => ({ label: row.label, count: Number(row.count) })),
+        hardware: hardware.map(row => ({ label: row.label, count: Number(row.count) })),
+        matrices: matrices.map(row => ({ label: row.label, count: Number(row.count) })),
+        generatedAt: new Date().toISOString(),
+    };
+}
+
 module.exports = {
     getBMPByID,
     getBMPByID_v2,
@@ -257,4 +306,5 @@ module.exports = {
     getUserMapData,
     getStatistics,
     isTelemetryUser,
+    getAdminStatistics,
 };

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="de">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width" />
+        <title>PixelIt · Moderation</title>
+        <link rel="stylesheet" href="/admin/style.css" />
+    </head>
+    <body>
+        <aside class="sidebar">
+            <a class="brand" href="/admin/">
+                <span class="brand-icon">▦</span>
+                PixelIt
+                <span class="admin-label">ADMIN</span>
+            </a>
+            <p class="nav-label">WORKSPACE</p>
+            <nav class="admin-navigation" aria-label="Administration">
+                <button id="reports-tab" class="nav-item" aria-pressed="true" disabled>
+                    <span>▤</span>
+                    Icon-Meldungen
+                </button>
+                <button id="statistics-tab" class="nav-item" aria-pressed="false" disabled>
+                    <span>▥</span>
+                    Statistik
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <span class="avatar">A</span>
+                <div>
+                    Administrator
+                    <small>Gallery-Verwaltung</small>
+                </div>
+            </div>
+        </aside>
+        <main>
+            <header class="topbar">
+                <span>
+                    Gallery
+                    <span class="slash">/</span>
+                    Moderation
+                </span>
+                <span class="secure">● Geschützter Bereich</span>
+            </header>
+            <div class="page-heading">
+                <div>
+                    <p class="eyebrow">GALLERY VERWALTEN</p>
+                    <h1 id="page-title">Icon-Meldungen</h1>
+                    <p id="page-subtitle" class="subtitle">Meldungen prüfen und Icons verwalten.</p>
+                </div>
+                <button id="refresh" class="secondary" hidden>↻ Aktualisieren</button>
+            </div>
+            <form id="login" class="login-card">
+                <span class="login-symbol">▦</span>
+                <h2>Willkommen zurück</h2>
+                <p>Melde dich an, um die Icon-Gallery zu moderieren.</p>
+                <label for="password">Adminpasswort</label>
+                <input
+                    id="password"
+                    type="password"
+                    autocomplete="current-password"
+                    required
+                    maxlength="1024"
+                    placeholder="Dein Adminpasswort"
+                />
+                <button class="primary">Anmelden →</button>
+                <small>Deine Sitzung endet nach 30 Minuten.</small>
+            </form>
+            <p id="message" role="status" aria-live="polite" hidden></p>
+            <section id="panel" hidden>
+                <div id="moderation-view">
+                    <div class="stats">
+                        <div class="stat">
+                            <span>Geladene Meldungen</span>
+                            <strong id="count-all">0</strong>
+                            <small>In dieser Ansicht</small>
+                        </div>
+                        <div class="stat">
+                            <span>
+                                <i class="dot pending"></i>
+                                Offen
+                            </span>
+                            <strong id="count-pending">0</strong>
+                            <small>Warten auf deine Prüfung</small>
+                        </div>
+                        <div class="stat">
+                            <span>
+                                <i class="dot approved"></i>
+                                Ausgeblendet
+                            </span>
+                            <strong id="count-approved">0</strong>
+                            <small>Jederzeit wiederherstellbar</small>
+                        </div>
+                        <div class="stat">
+                            <span>
+                                <i class="dot rejected"></i>
+                                Abgelehnt
+                            </span>
+                            <strong id="count-rejected">0</strong>
+                            <small>Icons bleiben sichtbar</small>
+                        </div>
+                    </div>
+                    <div class="queue-heading">
+                        <div>
+                            <h2>Meldungen</h2>
+                            <p>Offene und bearbeitete Meldungen im Überblick.</p>
+                        </div>
+                        <button id="logout" class="quiet">Abmelden ↗</button>
+                    </div>
+                    <div class="toolbar">
+                        <div class="tabs" role="group" aria-label="Nach Status filtern">
+                            <button data-filter="all" aria-pressed="true">Alle</button>
+                            <button data-filter="pending" aria-pressed="false">Offen</button>
+                            <button data-filter="approved" aria-pressed="false">Ausgeblendet</button>
+                            <button data-filter="rejected" aria-pressed="false">Abgelehnt</button>
+                        </div>
+                        <div class="search-tools">
+                            <input
+                                id="search"
+                                type="search"
+                                aria-label="Meldungen durchsuchen"
+                                placeholder="Name, Icon-ID oder Begründung …"
+                            />
+                            <select id="sort" aria-label="Sortierung">
+                                <option value="new">Neueste zuerst</option>
+                                <option value="old">Älteste zuerst</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="list-meta">
+                        <span id="result-count"></span>
+                        <span>Suche und Zähler beziehen sich auf geladene Meldungen.</span>
+                    </div>
+                    <div id="reports" class="reports"></div>
+                    <div id="empty" class="empty" hidden>
+                        <span>✓</span>
+                        <h3>Hier ist alles aufgeräumt.</h3>
+                        <p>Für diese Auswahl gibt es keine Meldungen.</p>
+                    </div>
+                    <div class="load-more"><button id="more" class="secondary">Weitere Meldungen laden</button></div>
+                    <footer>
+                        PixelIt Gallery
+                        <span>Ausblenden ist reversibel. Bereits heruntergeladene Icons bleiben auf den Geräten.</span>
+                    </footer>
+                </div>
+                <div id="statistics-view" hidden>
+                    <div class="stats telemetry-stats">
+                        <div class="stat">
+                            <span>Aktiv · 24 Stunden</span>
+                            <strong id="telemetry-24h">–</strong>
+                            <small>Zuletzt gemeldete Geräte</small>
+                        </div>
+                        <div class="stat">
+                            <span>Aktiv · 7 Tage</span>
+                            <strong id="telemetry-7d">–</strong>
+                            <small>Zuletzt gemeldete Geräte</small>
+                        </div>
+                        <div class="stat">
+                            <span>Aktiv · 30 Tage</span>
+                            <strong id="telemetry-30d">–</strong>
+                            <small>Basis der Verteilungen</small>
+                        </div>
+                        <div class="stat">
+                            <span>Erfasste Geräte</span>
+                            <strong id="telemetry-total">–</strong>
+                            <small>Alle Telemetrie-Datensätze</small>
+                        </div>
+                    </div>
+                    <div class="queue-heading">
+                        <div>
+                            <h2>Geräteübersicht</h2>
+                            <p>Verteilungen der letzten 30 Tage · jeweils die häufigsten 8 Einträge.</p>
+                        </div>
+                        <button id="statistics-logout" class="quiet">Abmelden ↗</button>
+                    </div>
+                    <p id="statistics-message" role="status" hidden></p>
+                    <div class="telemetry-grid">
+                        <article class="telemetry-card">
+                            <h3>Firmware-Versionen</h3>
+                            <div id="telemetry-versions"></div>
+                        </article>
+                        <article class="telemetry-card">
+                            <h3>Hardwaretypen</h3>
+                            <div id="telemetry-hardware"></div>
+                        </article>
+                        <article class="telemetry-card">
+                            <h3>Matrix-Konfigurationen</h3>
+                            <div id="telemetry-matrices"></div>
+                        </article>
+                    </div>
+                    <footer>
+                        <span id="statistics-updated">Noch nicht geladen</span>
+                        <span>
+                            Telemetrie zeigt letzte Meldungen, keine Live-Verbindungen. Zeiträume überschneiden sich.
+                        </span>
+                    </footer>
+                </div>
+            </section>
+        </main>
+        <dialog id="confirm-dialog">
+            <form method="dialog">
+                <span class="eyebrow">MODERATION</span>
+                <h2 id="confirm-title"></h2>
+                <p id="confirm-text"></p>
+                <div class="dialog-actions">
+                    <button value="cancel" class="secondary">Abbrechen</button>
+                    <button value="confirm" id="confirm-action" class="primary">Bestätigen</button>
+                </div>
+            </form>
+        </dialog>
+        <dialog id="preview-dialog">
+            <form method="dialog">
+                <div class="preview-heading">
+                    <h2 id="preview-title">Icon-Vorschau</h2>
+                    <button value="close" class="secondary" aria-label="Vorschau schließen">✕</button>
+                </div>
+                <div id="large-preview"></div>
+                <p>Erstes Bild · Originalfarben in RGB565</p>
+            </form>
+        </dialog>
+        <script src="/admin/app.js" defer></script>
+    </body>
+</html>
