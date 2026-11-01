@@ -176,6 +176,10 @@ regression tests and dependency audit before building and smoke-testing Docker.
 
 ## Changelog
 
+### 1.9.1 (2026-11-01)
+
+- (o0shojo0o) Add original asset filenames and browser download URLs to firmware release metadata while preserving existing labels and download counts. Document client compatibility and add regression coverage.
+  
 ### 1.9.0 (2026-10-28)
 
 - (o0shojo0o) Upgrade to Express 5 and body-parser 2; update dotenv, mysql2, express-rate-limit, and CodeQL.
