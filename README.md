@@ -42,7 +42,9 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       # Optional admin access (HTTPS origin, no trailing slash):
       # ADMIN_ORIGIN: https://pixelit.bastelbunker.de
-      # ADMIN_PASSWORD: ${PIXELIT_ADMIN_PASSWORD}
+      # ADMIN_GITHUB_CLIENT_ID: ${PIXELIT_GITHUB_CLIENT_ID}
+      # ADMIN_GITHUB_CLIENT_SECRET: ${PIXELIT_GITHUB_CLIENT_SECRET}
+      # ADMIN_GITHUB_OWNER_ID: "123456"
       GITHUB_TOKEN: ${GITHUB_TOKEN}
       API_GLOBAL_LIMIT_WINDOW_MS: 300000
       API_GLOBAL_LIMIT_MAX: 100
@@ -184,8 +186,10 @@ hiding or restoring icons, and viewing aggregate device telemetry statistics.
 
 The API creates the moderation tables automatically before accepting requests.
 The MySQL account needs `CREATE` permission in addition to its existing access.
-Enable the admin page with `ADMIN_ORIGIN` (public HTTPS origin, no trailing slash)
-and `ADMIN_PASSWORD` (16–1024 characters). No manual hash generation is needed.
+Enable GitHub login with `ADMIN_ORIGIN` (public HTTPS origin, no trailing slash),
+`ADMIN_GITHUB_CLIENT_ID`, `ADMIN_GITHUB_CLIENT_SECRET` and `ADMIN_GITHUB_OWNER_ID`
+(your numeric GitHub ID). The owner manages up to 100 moderators in the admin UI.
+Without GitHub configuration, existing `ADMIN_PASSWORD` login remains supported.
 
 See [moderation setup and API reference](docs/moderation.md) for setup,
 deployment requirements and endpoints.
@@ -193,6 +197,8 @@ deployment requirements and endpoints.
 ## Changelog
 
 ### Unreleased
+
+- (o0shojo0o) Add GitHub OAuth login with an owner role, UI-managed moderators, membership revocation and individual moderation audit identities; retain password login for installations without GitHub configuration.
 
 - (o0shojo0o) Show open reports by default in the admin UI.
 - (o0shojo0o) Validate matrix names against supported firmware names in admin and public statistics; group other names as `Custom` without changing stored telemetry.

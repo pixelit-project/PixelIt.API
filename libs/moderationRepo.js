@@ -62,7 +62,7 @@ async function list(before) {
     return reports;
 }
 
-async function decide(reportId, action) {
+async function decide(reportId, action, actor = 'admin') {
     const connection = await pool.getConnection();
     const status = action === 'approve' ? 'approved' : 'rejected';
     const previousStatus = action === 'restore' ? 'approved' : 'pending';
@@ -82,7 +82,7 @@ async function decide(reportId, action) {
         await connection.execute('INSERT INTO pixel_it_moderation_audit (report_id, action, actor) VALUES (?, ?, ?)', [
             reportId,
             action,
-            'admin',
+            actor,
         ]);
         await connection.commit();
         return true;
@@ -94,9 +94,65 @@ async function decide(reportId, action) {
     }
 }
 
+async function listModerators() {
+    const [rows] = await pool.query(`
+        SELECT github_id, created_by, created_at
+        FROM pixel_it_moderators
+        ORDER BY created_at DESC
+        LIMIT 100
+    `);
+    return rows;
+}
+
+async function isModerator(id) {
+    const [rows] = await pool.execute(`
+        SELECT github_id FROM pixel_it_moderators WHERE github_id = ?
+    `, [id]);
+    return rows.length > 0;
+}
+
+async function setModerator(id, enabled, actor) {
+    // Serialize membership changes across API instances and bound the directory.
+    const connection = await pool.getConnection();
+    let locked = false;
+    try {
+        const [locks] = await connection.query("SELECT GET_LOCK('pixelit_moderators', 5) AS acquired");
+        locked = Number(locks[0].acquired) === 1;
+        if (!locked) {
+            throw new Error('Moderator directory busy');
+        }
+        if (enabled) {
+            const [counts] = await connection.query('SELECT COUNT(*) AS count FROM pixel_it_moderators');
+            if (Number(counts[0].count) >= 100) {
+                return false;
+            }
+            await connection.execute(`
+                INSERT IGNORE INTO pixel_it_moderators (github_id, created_by)
+                VALUES (?, ?)
+            `, [id, actor]);
+        } else {
+            await connection.execute(`
+                DELETE FROM pixel_it_moderators WHERE github_id = ?
+            `, [id]);
+        }
+        return true;
+    } finally {
+        try {
+            if (locked) {
+                await connection.query("SELECT RELEASE_LOCK('pixelit_moderators')");
+            }
+        } finally {
+            connection.release();
+        }
+    }
+}
+
 module.exports = {
     report,
     preview,
     list,
     decide,
+    listModerators,
+    isModerator,
+    setModerator,
 };

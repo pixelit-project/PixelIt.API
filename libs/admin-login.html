@@ -8,14 +8,17 @@
     </head>
     <body class="login-page">
         <main>
-            <form id="login" class="login-card">
+            <div class="login-card">
                 <span class="login-symbol" aria-hidden="true">▦</span>
                 <h1>PixelIt Admin</h1>
+                <!-- GITHUB_LOGIN -->
+                <form id="login" <!-- PASSWORD_HIDDEN -->>
                 <label for="password">Passwort</label>
                 <input id="password" type="password" autocomplete="current-password" required maxlength="1024" />
                 <button class="primary">Anmelden</button>
                 <p id="login-message" role="status" aria-live="polite" hidden></p>
             </form>
+            </div>
         </main>
         <script src="/admin/login.js" defer></script>
     </body>

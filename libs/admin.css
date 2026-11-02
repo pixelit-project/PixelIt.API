@@ -831,3 +831,17 @@ input::placeholder {
     color: var(--ink);
     font-size: 13px;
 }
+
+.github-login {
+    display: block;
+    text-align: center;
+    padding: 12px;
+    margin: 20px 0;
+    border-radius: 8px;
+    text-decoration: none;
+}
+.login-card form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}

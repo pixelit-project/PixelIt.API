@@ -3,11 +3,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const log = require('../libs/logger');
 const tools = require('../libs/tools');
+const createGithubAuth = require('../libs/githubAuth');
 const createCredentials = require('../libs/adminCredentials');
 const { reportLimiter, adminLoginLimiter, adminReadLimiter, adminActionLimiter } = require('../libs/rateLimit');
 
-function registerModerationRoutes(app, repo, cache, statisticsRepo = require('../libs/pixelItRepo')) {
+function registerModerationRoutes(app, repo, cache, statisticsRepo = require('../libs/pixelItRepo'), github = createGithubAuth(process.env)) {
     const sessions = new Map();
+    const pendingLogins = new Map();
     const sessionLifetime = 30 * 60 * 1000;
     const maximumSessions = 100;
     const cookieName = '__Host-pixelit_admin';
@@ -17,12 +19,12 @@ function registerModerationRoutes(app, repo, cache, statisticsRepo = require('..
 
     async function initializeCredentials() {
         try {
-            const verifyPassword = await createCredentials({
+            const verifyPassword = github.configured ? null : await createCredentials({
                 ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
                 ADMIN_PASSWORD_HASH: process.env.ADMIN_PASSWORD_HASH,
             });
-            if (!verifyPassword || !/^https:\/\/[^/]+$/.test(origin)) {
-                log.warn('Admin access disabled: configure a valid ADMIN_PASSWORD and HTTPS ADMIN_ORIGIN.');
+            if ((github.configured ? !github.enabled : !verifyPassword) || !/^https:\/\/[^/]+$/.test(origin)) {
+                log.warn('Admin access disabled: configure valid authentication and HTTPS ADMIN_ORIGIN.');
             } else {
                 log.info('Admin access configured; session lifetime: {sessionMinutes} minutes.', {
                     sessionMinutes: sessionLifetime / 60000,
@@ -65,8 +67,8 @@ function registerModerationRoutes(app, repo, cache, statisticsRepo = require('..
 
     function removeExpiredSessions() {
         const now = Date.now();
-        for (const [token, expiresAt] of sessions) {
-            if (expiresAt <= now) {
+        for (const [token, session] of sessions) {
+            if (session.expiresAt <= now) {
                 sessions.delete(token);
             }
         }
@@ -75,7 +77,7 @@ function registerModerationRoutes(app, repo, cache, statisticsRepo = require('..
     async function checkAdminOrigin(req, res, next) {
         res.set('Cache-Control', 'no-store');
         const verifyPassword = await credentials;
-        if (!verifyPassword || !/^https:\/\/[^/]+$/.test(origin)) {
+        if ((github.configured ? !github.enabled : !verifyPassword) || !/^https:\/\/[^/]+$/.test(origin)) {
             res.sendStatus(503);
             return;
         }
@@ -87,24 +89,36 @@ function registerModerationRoutes(app, repo, cache, statisticsRepo = require('..
         next();
     }
 
-    function requireAdminSession(req, res, next) {
+    async function requireAdminSession(req, res, next) {
         const token = getSessionToken(req);
-        const expiresAt = sessions.get(token);
-        if (!expiresAt || expiresAt <= Date.now()) {
+        const session = sessions.get(token);
+        if (!session || session.expiresAt <= Date.now()) {
             sessions.delete(token);
             log.warn('Admin request rejected: session missing or expired.', getRequestContext(req));
             res.sendStatus(401);
             return;
         }
-        next();
+        try {
+            req.admin = session;
+            if (req.admin.id && req.admin.id !== github.ownerId && !(await repo.isModerator(req.admin.id))) {
+                sessions.delete(token);
+                res.sendStatus(401);
+                return;
+            }
+            next();
+        } catch (error) {
+            handleRequestError(error, req, next, 'AdminSession');
+        }
     }
 
     function sendAdminPage(req, res) {
-        const expiresAt = sessions.get(getSessionToken(req));
-        const authenticated = expiresAt && expiresAt > Date.now();
+        const session = sessions.get(getSessionToken(req));
+        const authenticated = session && session.expiresAt > Date.now();
         const fileName = authenticated ? 'admin.html' : 'admin-login.html';
         res.set('Vary', 'Cookie');
-        res.type('html').send(fs.readFileSync(path.join(__dirname, '..', 'libs', fileName), 'utf8'));
+        res.type('html').send(fs.readFileSync(path.join(__dirname, '..', 'libs', fileName), 'utf8')
+            .replace('<!-- GITHUB_LOGIN -->', github.enabled ? '<a class="primary github-login" href="/api/admin/github/login">Mit GitHub anmelden</a>' : '')
+            .replace('<!-- PASSWORD_HIDDEN -->', github.configured ? 'hidden' : ''));
     }
 
     function sendAdminScript(req, res) {
@@ -143,6 +157,10 @@ function registerModerationRoutes(app, repo, cache, statisticsRepo = require('..
     }
 
     async function login(req, res, next) {
+        if (github.configured) {
+            res.sendStatus(404);
+            return;
+        }
         const password = req.body?.password;
         if (typeof password !== 'string' || password.length > 1024) {
             log.warn('AdminLogin: invalid request body.', getRequestContext(req));
@@ -165,7 +183,7 @@ function registerModerationRoutes(app, repo, cache, statisticsRepo = require('..
                 return;
             }
             const token = crypto.randomBytes(32).toString('hex');
-            sessions.set(token, Date.now() + sessionLifetime);
+            sessions.set(token, { expiresAt: Date.now() + sessionLifetime, role: 'admin', actor: 'admin' });
             res.set(
                 'Set-Cookie',
                 `${cookieName}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${sessionLifetime / 1000}`
@@ -253,7 +271,7 @@ function registerModerationRoutes(app, repo, cache, statisticsRepo = require('..
             return;
         }
         try {
-            const updated = await repo.decide(reportId, action);
+            const updated = await repo.decide(reportId, action, req.admin.actor);
             if (!updated) {
                 log.warn('AdminDecision: report {reportId}, action {action} rejected due to state conflict.', {
                     ...getRequestContext(req),
@@ -268,11 +286,124 @@ function registerModerationRoutes(app, repo, cache, statisticsRepo = require('..
                 ...getRequestContext(req),
                 reportId,
                 action,
-                actor: 'admin',
+                actor: req.admin.actor,
             });
             res.sendStatus(204);
         } catch (error) {
             handleRequestError(error, req, next, 'AdminDecision');
+        }
+    }
+
+    function githubLogin(req, res) {
+        if (!github.enabled) {
+            res.sendStatus(503);
+            return;
+        }
+        for (const [key, value] of pendingLogins) {
+            if (value.expiresAt <= Date.now()) {
+                pendingLogins.delete(key);
+            }
+        }
+        if (pendingLogins.size >= 100) {
+            res.sendStatus(503);
+            return;
+        }
+        const state = crypto.randomBytes(32).toString('hex');
+        const verifier = crypto.randomBytes(32).toString('base64url');
+        pendingLogins.set(state, { verifier, expiresAt: Date.now() + 5 * 60 * 1000 });
+        res.cookie('__Host-pixelit_oauth', state, {
+            httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 300000,
+        });
+        res.redirect(github.authorize(state, crypto.createHash('sha256').update(verifier).digest('base64url')));
+    }
+
+    async function githubCallback(req, res, next) {
+        const state = req.query.state;
+        const cookie = (req.headers.cookie || '').match(/(?:^|;\s*)__Host-pixelit_oauth=([a-f0-9]{64})(?:;|$)/);
+        const pending = typeof state === 'string' ? pendingLogins.get(state) : null;
+        if (!github.enabled || !pending || !cookie || cookie[1] !== state || pending.expiresAt <= Date.now()) {
+            log.warn('GitHubLogin: invalid or expired state.', getRequestContext(req));
+            res.sendStatus(403);
+            return;
+        }
+        pendingLogins.delete(state);
+        res.clearCookie('__Host-pixelit_oauth', { httpOnly: true, secure: true, sameSite: 'lax', path: '/' });
+        if (typeof req.query.code !== 'string' || req.query.code.length > 512) {
+            res.status(400).send('Anmeldung abgebrochen. Bitte /admin/ erneut öffnen.');
+            return;
+        }
+        try {
+            const user = await github.identify(req.query.code, pending.verifier);
+            const role = user.id === github.ownerId ? 'admin' : 'moderator';
+            if (role !== 'admin' && !(await repo.isModerator(user.id))) {
+                log.warn('GitHubLogin: account {githubId} denied.', { ...getRequestContext(req), githubId: user.id });
+                res.status(403).send('Dieser GitHub-Account ist nicht freigeschaltet.');
+                return;
+            }
+            removeExpiredSessions();
+            sessions.delete(getSessionToken(req));
+            if (sessions.size >= maximumSessions) {
+                res.sendStatus(503);
+                return;
+            }
+            const token = crypto.randomBytes(32).toString('hex');
+            sessions.set(token, { ...user, role, actor: `github:${user.id}`, expiresAt: Date.now() + sessionLifetime });
+            res.cookie(cookieName, token, {
+                httpOnly: true, secure: true, sameSite: 'strict', path: '/', maxAge: sessionLifetime,
+            });
+            log.info('GitHubLogin: account {githubId} signed in as {role}.', {
+                ...getRequestContext(req), githubId: user.id, role,
+            });
+            res.redirect('/admin/');
+        } catch (error) {
+            handleRequestError(error, req, next, 'GitHubLogin');
+        }
+    }
+
+    function requireOwner(req, res, next) {
+        if (req.admin.role !== 'admin') {
+            log.warn('ModeratorManagement: access denied.', { ...getRequestContext(req), actor: req.admin.actor });
+            res.sendStatus(403);
+            return;
+        }
+        next();
+    }
+
+    async function getModerators(req, res, next) {
+        try {
+            res.json(await repo.listModerators());
+        } catch (error) {
+            handleRequestError(error, req, next, 'ListModerators');
+        }
+    }
+
+    async function updateModerator(req, res, next) {
+        const { githubId, enabled } = req.body || {};
+        if (typeof githubId !== 'string' || !/^[1-9][0-9]{0,19}$/.test(githubId) ||
+            typeof enabled !== 'boolean' || githubId === github.ownerId) {
+            log.warn('ModeratorManagement: invalid request.', getRequestContext(req));
+            res.sendStatus(400);
+            return;
+        }
+        try {
+            if (!(await repo.setModerator(githubId, enabled, req.admin.actor))) {
+                res.sendStatus(409);
+                return;
+            }
+            // Removal revokes this process's sessions immediately; other processes recheck membership.
+            if (!enabled) {
+                for (const [token, session] of sessions) {
+                    if (session.id === githubId) {
+                        sessions.delete(token);
+                    }
+                }
+            }
+            log.info('ModeratorManagement: account {githubId}, enabled {enabled}, actor {actor}.', {
+                ...getRequestContext(req), githubId, enabled, actor: req.admin.actor,
+            });
+            res.sendStatus(204);
+        } catch (error) {
+            handleRequestError(error, req, next, 'UpdateModerator');
         }
     }
 
@@ -286,7 +417,12 @@ function registerModerationRoutes(app, repo, cache, statisticsRepo = require('..
 
     // Login is limited before origin/session checks, so rejected attempts count too.
     app.post('/api/admin/login', adminLoginLimiter, checkAdminOrigin, login);
+    app.get('/api/admin/github/login', adminLoginLimiter, checkAdminOrigin, githubLogin);
+    app.get('/api/admin/github/callback', adminLoginLimiter, checkAdminOrigin, githubCallback);
     app.use('/api/admin', checkAdminOrigin, requireAdminSession);
+    app.get('/api/admin/me', adminReadLimiter, (req, res) => res.json({ role: req.admin.role, login: req.admin.login || 'Administrator', id: req.admin.id || null }));
+    app.get('/api/admin/moderators', adminReadLimiter, requireOwner, getModerators);
+    app.post('/api/admin/moderators', adminActionLimiter, requireOwner, updateModerator);
     app.get('/api/admin/icons/:id', adminReadLimiter, getIconPreview);
     app.get('/api/admin/reports', adminReadLimiter, getReports);
     app.get('/api/admin/statistics', adminReadLimiter, getStatistics);

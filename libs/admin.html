@@ -23,11 +23,12 @@
                     <span>▥</span>
                     Statistik
                 </button>
+            <button id="moderators-tab" class="nav-item" aria-pressed="false" hidden>Moderatoren</button>
             </nav>
             <div class="sidebar-footer">
                 <span class="avatar">A</span>
                 <div>
-                    Administrator
+                    <span id="identity">Administrator</span>
                     <small>Gallery-Verwaltung</small>
                 </div>
             </div>
@@ -125,6 +126,17 @@
                         PixelIt Gallery
                         <span>Ausblenden ist reversibel. Bereits heruntergeladene Icons bleiben auf den Geräten.</span>
                     </footer>
+                </div>
+                <div id="moderators-view" hidden>
+                    <div class="queue-heading"><h2>Moderatoren verwalten</h2><button id="moderators-logout" class="quiet">Abmelden ↗</button></div>
+                    <p>Freigeschaltete GitHub-Accounts können Meldungen bearbeiten und Icons wiederherstellen. Maximal 100 Moderatoren.</p>
+                    <form id="moderator-form" class="toolbar">
+                        <label for="github-id">GitHub-Nutzer-ID</label>
+                        <input id="github-id" required pattern="[1-9][0-9]{0,19}" maxlength="20" inputmode="numeric" placeholder="z. B. 123456" />
+                        <button class="primary">Moderator hinzufügen</button>
+                    </form>
+                    <p>Verwende die numerische ID des Accounts, nicht den Benutzernamen. Sie steht im Feld „id“ unter https://api.github.com/users/BENUTZERNAME.</p>
+                    <div id="moderator-list" class="reports"></div>
                 </div>
                 <div id="statistics-view" hidden>
                     <div class="stats telemetry-stats">

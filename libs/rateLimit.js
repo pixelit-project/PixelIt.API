@@ -28,7 +28,8 @@ const apiLimiter = rateLimit({
     handler: (req, response, next, options) => {
         response.status(options.statusCode).send(options.message);
         const sourceIP = tools.getIPFromRequest(req);
-        const rawUrl = tools.getRawURLFromRequest(req);
+        const rawUrl = req.path === '/api/admin/github/callback' || req.originalUrl?.startsWith('/api/admin/github/callback?')
+            ? '/api/admin/github/callback' : tools.getRawURLFromRequest(req);
         log.warn('Global API RateLimit reached from: {sourceIP}, rawUrl: {rawUrl}', { sourceIP, rawUrl, useragent: req.useragent, });
     }
 });
@@ -43,7 +44,8 @@ const telemetryLimiter = rateLimit({
     handler: (req, response, next, options) => {
         response.status(options.statusCode).send(options.message);
         const sourceIP = tools.getIPFromRequest(req);
-        const rawUrl = tools.getRawURLFromRequest(req);
+        const rawUrl = req.path === '/api/admin/github/callback' || req.originalUrl?.startsWith('/api/admin/github/callback?')
+            ? '/api/admin/github/callback' : tools.getRawURLFromRequest(req);
         log.warn('Telemetry API RateLimit reached from: {sourceIP}, rawUrl: {rawUrl}', { sourceIP, rawUrl, useragent: req.useragent, });
     }
 });
@@ -58,7 +60,8 @@ const saveBitmapLimiter = rateLimit({
     handler: (req, response, next, options) => {
         response.status(options.statusCode).send(options.message);
         const sourceIP = tools.getIPFromRequest(req);
-        const rawUrl = tools.getRawURLFromRequest(req);
+        const rawUrl = req.path === '/api/admin/github/callback' || req.originalUrl?.startsWith('/api/admin/github/callback?')
+            ? '/api/admin/github/callback' : tools.getRawURLFromRequest(req);
         log.warn('SaveBitmap API RateLimit reached from: {sourceIP}, rawUrl: {rawUrl}', { sourceIP, rawUrl, useragent: req.useragent, });
     }
 });

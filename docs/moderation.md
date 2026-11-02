@@ -3,22 +3,56 @@
 
 ## Setup
 
-Set `ADMIN_ORIGIN` to the exact public HTTPS origin without a trailing slash,
-for example `https://pixelit.bastelbunker.de`, and `ADMIN_PASSWORD` to a strong
-password of 16–1024 characters in the server environment or Docker Compose.
-The API derives a salted password hash internally; no generator command is needed.
-Keep the password out of Git and logs. Restart the API after changing it; this also
-revokes existing sessions.
+### GitHub login and multiple moderators
 
-For existing installations, `ADMIN_PASSWORD_HASH` remains supported when
-`ADMIN_PASSWORD` is unset. If both are present, `ADMIN_PASSWORD` takes precedence;
-an empty or invalid password disables admin access rather than falling back.
+Set `ADMIN_ORIGIN` to the exact public HTTPS origin without a trailing slash.
+Create a GitHub OAuth App in GitHub Settings → Developer settings → OAuth Apps.
+Set its Homepage URL to that origin and its Authorization callback URL to
+`https://YOUR-HOST/api/admin/github/callback`.
+
+Configure these server-only environment variables and restart:
+
+| Variable | Purpose |
+| --- | --- |
+| `ADMIN_GITHUB_CLIENT_ID` | OAuth App client ID |
+| `ADMIN_GITHUB_CLIENT_SECRET` | OAuth App client secret; keep out of Git and logs |
+| `ADMIN_GITHUB_OWNER_ID` | Your immutable numeric GitHub account ID, not username |
+
+Find the owner's numeric `id` using `https://api.github.com/users/USERNAME`.
+The configured owner receives the admin role and cannot be removed through the UI.
+Changing the owner requires a configuration change and restart. No first-login
+account is automatically promoted. GitHub login requests no repository or email scopes.
+The existing `GITHUB_TOKEN` for release metadata is unrelated and is not used for login.
+
+Open `/admin/` and choose **Mit GitHub anmelden**. As owner, open **Moderatoren**
+to add or remove accounts by their numeric GitHub IDs (from the same public user API).
+Verify each ID belongs to the intended person. At most 100 moderators are stored.
+Moderators can review reports, hide/restore icons and view aggregate statistics;
+only the owner can manage membership. Signing in with an unlisted account returns
+403. Membership is checked on each authenticated request; removal revokes access
+for existing moderator sessions as well. Audit decisions store `github:ID`;
+operational logs record membership changes and the acting administrator.
+
+OAuth uses browser-bound, single-use state and PKCE. Pending flows expire after
+five minutes and are capped at 100 per process. GitHub calls have ten-second
+timeouts, bounded responses and no automatic retries. An unavailable GitHub service
+prevents new logins; established sessions continue until expiry or revocation.
+Incomplete GitHub configuration disables admin access and does not fall back to a
+password. When GitHub is configured, password login is disabled.
+
+### Legacy password login
+
+For existing installations without any `ADMIN_GITHUB_*` variables, `ADMIN_PASSWORD`
+(16–1024 characters) and `ADMIN_ORIGIN` remain supported. The service derives a salted
+password hash internally. `ADMIN_PASSWORD_HASH` remains supported only when
+`ADMIN_PASSWORD` is unset. Restarting revokes sessions. This legacy mode has one
+shared administrator identity; enable GitHub login for individual accounts.
 
 ## Automatic database setup
 
 At startup the API applies the bundled `migrations/*.sql` files before opening its
 HTTP port. The MySQL user needs `CREATE`, `SELECT` and `INSERT` for migration setup,
-in addition to the existing application permissions (including moderation `UPDATE`).
+in addition to the existing application permissions (including moderation `UPDATE` and moderator `DELETE`).
 The existing PixelIt database and bitmap/user tables must already exist.
 
 The moderation migration only creates new tables; existing bitmap data is unchanged.
@@ -37,9 +71,8 @@ its existing tables are retained and the migration is registered on the first st
 
 ## Sessions and deployment
 
-Open `/admin/` on that HTTPS origin. Without a valid password and origin, admin routes
-return 503. This first version has one shared administrator identity, not GitHub
-OAuth or multiple accounts. Keep the password private. Sessions last 30 minutes,
+Open `/admin/` on that HTTPS origin. Without valid authentication configuration and
+origin, admin routes return 503. Sessions last 30 minutes,
 are stored in memory (maximum 100), and are revoked by logout or API restart.
 Run one API process, or use sticky routing; multiple replicas need a shared session
 store. HTTPS termination must be supplied by your reverse proxy. Do not expose the
@@ -55,6 +88,13 @@ Endpoints:
   Limited to 5 requests per client per 15 minutes by default, plus the global API limit.
 - `POST /api/admin/login`: JSON `{ "password": "..." }`; 5 attempts per client
   per 15 minutes, plus global limit. Sets the session cookie.
+- `GET /api/admin/github/login` and `GET /api/admin/github/callback`: OAuth entry
+  and callback, both sharing the login attempt limit.
+- `GET /api/admin/me`: current account ID, login and role; admin read limit.
+- `GET /api/admin/moderators`: owner-only list, at most 100 entries; admin read limit.
+- `POST /api/admin/moderators`: owner-only JSON `{ "githubId": "123", "enabled": true }`;
+  `false` removes membership. Requires matching Origin and the admin action limit.
+  Invalid input or attempts to modify the owner return 400; a full directory returns 409.
 - `POST /api/admin/logout`: revokes the session.
 - `GET /api/admin/reports?before=123`: newest first, maximum 50 records; pass the
   last record ID as `before` to continue.

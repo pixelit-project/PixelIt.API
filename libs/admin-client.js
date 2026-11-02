@@ -421,11 +421,13 @@ async function loadStatistics() {
 function showView(view) {
     currentView = view;
     const statisticsVisible = view === 'statistics';
-    getElement('moderation-view').hidden = statisticsVisible;
+    getElement('moderation-view').hidden = view !== 'reports';
+    getElement('moderators-view').hidden = view !== 'moderators';
+    getElement('moderators-tab').setAttribute('aria-pressed', String(view === 'moderators'));
     getElement('statistics-view').hidden = !statisticsVisible;
-    getElement('reports-tab').setAttribute('aria-pressed', String(!statisticsVisible));
+    getElement('reports-tab').setAttribute('aria-pressed', String(view === 'reports'));
     getElement('statistics-tab').setAttribute('aria-pressed', String(statisticsVisible));
-    getElement('page-title').textContent = statisticsVisible ? 'Statistik' : 'Icon-Meldungen';
+    getElement('page-title').textContent = view === 'moderators' ? 'Moderatoren' : statisticsVisible ? 'Statistik' : 'Icon-Meldungen';
     getElement('page-subtitle').textContent = statisticsVisible
         ? 'Telemetrie und Geräteverteilung im Überblick.'
         : 'Meldungen prüfen und Icons verwalten.';
@@ -434,7 +436,7 @@ function showView(view) {
 // Bind page controls after all handlers have been defined.
 getElement('logout').onclick = logout;
 getElement('statistics-logout').onclick = logout;
-getElement('refresh').onclick = () => (currentView === 'statistics' ? loadStatistics() : loadReports());
+getElement('refresh').onclick = () => (currentView === 'moderators' ? loadModerators() : currentView === 'statistics' ? loadStatistics() : loadReports());
 getElement('reports-tab').onclick = () => showView('reports');
 getElement('statistics-tab').onclick = () => {
     showView('statistics');
@@ -450,4 +452,65 @@ for (const button of document.querySelectorAll('[data-filter]')) {
     };
 }
 
-loadReports();
+async function loadModerators() {
+    try {
+        const members = await requestAdmin('moderators');
+        const rows = members.map((member) => {
+            const row = createElement('article', 'report');
+            row.append(createElement('span', '', 'GitHub-ID ' + member.github_id));
+            const button = createElement('button', 'secondary', 'Entfernen');
+            button.onclick = async () => {
+                if (!window.confirm('Moderator ' + member.github_id + ' entfernen und Zugriff widerrufen?')) {
+                    return;
+                }
+                button.disabled = true;
+                try {
+                    await requestAdmin('moderators', { githubId: member.github_id, enabled: false });
+                    await loadModerators();
+                } catch (error) {
+                    showMessage(error.message, true);
+                    button.disabled = false;
+                }
+            };
+            row.append(button);
+            return row;
+        });
+        getElement('moderator-list').replaceChildren(...rows);
+        showMessage(members.length ? '' : 'Noch keine Moderatoren freigeschaltet.');
+    } catch (error) {
+        showMessage(error.message, true);
+    }
+}
+
+getElement('moderators-logout').onclick = logout;
+getElement('moderators-tab').onclick = () => {
+    showView('moderators');
+    loadModerators();
+};
+getElement('moderator-form').onsubmit = async (event) => {
+    event.preventDefault();
+    const button = event.currentTarget.querySelector('button');
+    button.disabled = true;
+    try {
+        await requestAdmin('moderators', { githubId: getElement('github-id').value, enabled: true });
+        getElement('github-id').value = '';
+        await loadModerators();
+    } catch (error) {
+        showMessage(error.message, true);
+    } finally {
+        button.disabled = false;
+    }
+};
+
+async function initializeDashboard() {
+    try {
+        const identity = await requestAdmin('me');
+        getElement('identity').textContent = identity.login + ' · ' + identity.role;
+        getElement('moderators-tab').hidden = identity.role !== 'admin' || !identity.id;
+        await loadReports();
+    } catch (error) {
+        showMessage(error.message, true);
+    }
+}
+
+initializeDashboard();
