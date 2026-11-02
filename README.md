@@ -206,12 +206,14 @@ at startup; see [Telegram setup](docs/telegram.md).
 
 ## Changelog
 
-### 2.1.1 (2026-11-02)
+### 2.2.0 (2026-11-02)
 
 - (o0shojo0o) Refresh the dark admin workspace with consistent navigation icons, clearer cards and account settings, and scrollable mobile navigation.
 
 - (o0shojo0o) Add separate moderation and owner-only administrative audit views; record moderator membership changes transactionally and allow adding moderators by GitHub username while retaining stable account IDs.
 - (o0shojo0o) Confirm successful Telegram account linking once in the bot's private chat.
+
+### 2.1.1 (2026-11-02)
 
 - (o0shojo0o) Register the Telegram webhook automatically at startup while preserving queued updates; retry failed registrations with increasing delays without preventing API startup.
 
