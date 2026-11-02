@@ -47,7 +47,9 @@ and `routes/` folders, already included in the Docker image.
 In the admin UI, open **Benachrichtigungen → Telegram verbinden**, open the generated
 link and press **Start** in the bot's private chat. Return to the UI and click
 **Aktualisieren** to confirm the connection. There is no browser polling.
-The bot does not send a separate confirmation message.
+The bot confirms a successfully saved connection once in the private chat.
+This confirmation uses the webhook response and contains no GitHub credentials.
+Expired, invalid or replayed link codes do not produce a confirmation.
 
 The random linking code is stored only as a SHA-256 hash, expires after five minutes
 and is consumed once. Do not share the link: it authorizes linking your subscription.

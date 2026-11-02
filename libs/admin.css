@@ -1,15 +1,15 @@
 :root {
     color-scheme: dark;
-    --ink: #edf0f7;
-    --muted: #a0a7b5;
-    --line: #2b2e36;
+    --ink: #edf2fa;
+    --muted: #a2aec1;
+    --line: #27303e;
     --accent: #82b1ff;
     --primary: #2563eb;
     --primary-hover: #3475f5;
-    --bg: #0b0c0f;
-    --surface: #14161b;
-    --surface-raised: #1c1f26;
-    --sidebar: #090a0d;
+    --bg: #0c1017;
+    --surface: #131923;
+    --surface-raised: #1c2533;
+    --sidebar: #090e15;
     --blue-surface: #18253d;
     --blue-line: #304c78;
     --subtle: #8d96a8;
@@ -19,7 +19,7 @@
 }
 body {
     margin: 0;
-    background: var(--bg);
+    background: radial-gradient(ellipse at 65% 0%, #16243b66, transparent 55%), var(--bg);
     color: var(--ink);
     font: 14px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
@@ -42,7 +42,7 @@ button {
     background: transparent;
     color: inherit;
     font-weight: 600;
-    transition: background 0.15s, transform 0.15s;
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 button:hover {
     background: var(--surface-raised);
@@ -68,8 +68,10 @@ select {
     min-width: 0;
 }
 .primary {
-    background: var(--primary);
-    color: var(--ink);
+    background: linear-gradient(180deg, #347cf5, #2563db);
+    border-color: #6498ff55;
+    box-shadow: 0 3px 12px #1660ef22, inset 0 1px #ffffff15;
+    color: #fff;
 }
 .primary:hover {
     background: var(--primary-hover);
@@ -92,10 +94,12 @@ select {
 .sidebar {
     position: fixed;
     inset: 0 auto 0 0;
-    width: 232px;
+    width: 248px;
     background: var(--sidebar);
     color: var(--ink);
-    padding: 32px 20px;
+    padding: 30px 16px 22px;
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
 }
@@ -111,8 +115,13 @@ select {
 }
 .brand-icon {
     color: var(--accent);
-    font-size: 34px;
+    font-size: 30px;
     line-height: 1;
+    background: #1b3153;
+    border: 1px solid #365687;
+    border-radius: 10px;
+    padding: 5px 8px;
+    box-shadow: 0 0 22px #3178e51a;
 }
 .admin-label {
     font-size: 9px;
@@ -127,7 +136,7 @@ select {
     font-size: 10px;
     letter-spacing: 1.8px;
     color: var(--muted);
-    margin: 50px 12px 13px;
+    margin: 44px 12px 16px;
 }
 .nav-item {
     background: var(--blue-surface);
@@ -137,7 +146,7 @@ select {
     gap: 12px;
     align-items: center;
     padding: 12px;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
 }
 .nav-item > span:first-child {
@@ -152,6 +161,7 @@ select {
 }
 .sidebar-footer {
     margin-top: auto;
+    padding-bottom: 6px;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -174,12 +184,12 @@ select {
     color: var(--accent);
 }
 main {
-    margin-left: 232px;
+    margin-left: 248px;
     padding: 0 48px 32px;
     max-width: 1700px;
 }
 .topbar {
-    height: 76px;
+    height: 78px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -192,15 +202,29 @@ main {
     color: var(--subtle);
 }
 .secure {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     font-size: 11px;
-    color: var(--muted);
+    color: #bcc9dd;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 6px 11px;
+    background: #131d2b;
+}
+#refresh {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-shrink: 0;
 }
 .page-heading {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    margin: 38px 0 30px;
+    margin: 38px 0 32px;
 }
 .eyebrow {
     font-size: 10px;
@@ -210,9 +234,9 @@ main {
     margin: 0 0 9px;
 }
 h1 {
-    font-size: clamp(24px, 2.6vw, 34px);
-    font-weight: 650;
-    letter-spacing: -1.1px;
+    font-size: clamp(27px, 3vw, 38px);
+    font-weight: 720;
+    letter-spacing: -1.3px;
     line-height: 1.25;
     margin: 0 0 10px;
 }
@@ -235,11 +259,13 @@ p {
     margin-bottom: 36px;
 }
 .stat {
-    padding: 20px 22px;
-    background: var(--surface);
+    padding: 22px;
+    background: linear-gradient(135deg, #1c2a3b88, transparent), var(--surface);
     border: 1px solid var(--line);
     border-radius: 12px;
-    box-shadow: 0 3px 8px #0000001a;
+    box-shadow: 0 8px 24px #0000001f, inset 0 1px #ffffff05;
+    position: relative;
+    overflow: hidden;
 }
 .stat > span {
     font-size: 12px;
@@ -250,7 +276,8 @@ p {
 }
 .stat strong {
     display: block;
-    font-size: 32px;
+    font-size: 36px;
+    font-variant-numeric: tabular-nums;
     letter-spacing: -1px;
     font-weight: 600;
     margin: 10px 0 2px;
@@ -277,9 +304,14 @@ p {
 }
 .queue-heading {
     display: flex;
+    gap: 16px;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 21px;
+}
+.queue-heading .quiet {
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 .queue-heading p {
     font-size: 12px;
@@ -295,7 +327,8 @@ p {
 .tabs {
     display: flex;
     gap: 3px;
-    background: #101216;
+    background: #0b111b;
+    border: 1px solid var(--line);
     border-radius: 9px;
     padding: 4px;
 }
@@ -342,7 +375,9 @@ p {
     padding: 22px;
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 12px;
+    border-radius: 14px;
+    box-shadow: 0 4px 18px #00000012;
+    transition: border-color 0.15s;
     align-items: start;
 }
 .preview {
@@ -350,7 +385,9 @@ p {
     min-height: 96px;
     display: grid;
     place-items: center;
-    background-color: #0e1015;
+    background-color: #0b111b;
+    background-image: radial-gradient(#30415b66 1px, transparent 1px);
+    background-size: 8px 8px;
     border: 1px solid var(--line);
     border-radius: 10px;
     padding: 9px;
@@ -495,8 +532,8 @@ footer {
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 16px;
-    padding: 32px;
-    box-shadow: 0 12px 40px #00000033;
+    padding: 40px;
+    box-shadow: 0 20px 80px #00000055, 0 0 60px #1e6fff0b;
     display: flex;
     flex-direction: column;
     gap: 15px;
@@ -560,10 +597,10 @@ dialog p {
         padding: 0 24px 24px;
     }
     .sidebar {
-        width: 200px;
+        width: 224px;
     }
     main {
-        margin-left: 200px;
+        margin-left: 224px;
     }
     .report {
         grid-template-columns: 80px 1fr;
@@ -616,13 +653,6 @@ dialog p {
     .page-heading {
         margin-top: 25px;
         align-items: flex-start;
-    }
-    .page-heading > button {
-        font-size: 0;
-        padding: 9px;
-    }
-    .page-heading > button:first-letter {
-        font-size: 18px;
     }
     .stats {
         grid-template-columns: repeat(2, 1fr);
@@ -719,7 +749,8 @@ input::placeholder {
 /* Admin navigation and aggregate telemetry; colors share the default dark theme. */
 .admin-navigation {
     display: grid;
-    gap: 8px;
+    gap: 6px;
+    margin-bottom: 28px;
 }
 .admin-navigation .nav-item {
     width: 100%;
@@ -798,13 +829,19 @@ input::placeholder {
 @media (max-width: 720px) {
     .admin-navigation {
         display: flex;
-        margin-top: 16px;
+        overflow-x: auto;
+        padding: 4px 0 8px;
+        margin: 16px 0 0;
+        scrollbar-width: thin;
     }
     .sidebar .admin-navigation .nav-item {
         display: flex;
         font-size: 12px;
         padding: 10px;
         gap: 8px;
+        flex: 0 0 auto;
+        width: auto;
+        white-space: nowrap;
     }
     .telemetry-grid {
         grid-template-columns: 1fr;
@@ -859,4 +896,241 @@ input::placeholder {
     border: 1px solid var(--line);
     padding: 10px 16px;
     border-radius: 8px;
+}
+
+.audit-entry {
+    padding: 20px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow-wrap: anywhere;
+}
+.audit-entry h3 {
+    margin: 0 0 8px;
+}
+.audit-entry p {
+    margin: 0 0 8px;
+}
+.audit-entry small {
+    color: var(--muted);
+}
+
+/* Shared details for the gallery workspace. */
+.nav-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.admin-navigation .nav-item:hover:not(:disabled) {
+    color: var(--ink);
+    background: #ffffff05;
+    border-color: #344258;
+}
+.admin-navigation .nav-item[aria-pressed='true'] {
+    background: linear-gradient(100deg, #1f3c68, #18273e);
+    border-color: #3b5f92;
+    box-shadow: inset 3px 0 #6aa3ff;
+}
+.secure-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #8bb8ff;
+    box-shadow: 0 0 9px #609cff77;
+}
+.stat::after {
+    content: '';
+    position: absolute;
+    right: -13px;
+    bottom: -27px;
+    width: 90px;
+    height: 90px;
+    border: 1px solid #7faef014;
+    border-radius: 24px;
+    transform: rotate(25deg);
+    pointer-events: none;
+}
+.stat:nth-child(2) {
+    border-color: #385b8b;
+    background: linear-gradient(130deg, #203e6766, transparent), var(--surface);
+}
+.stat:nth-child(2) strong {
+    color: #a9ceff;
+}
+.report:hover {
+    border-color: #40516c;
+}
+#moderator-list {
+    margin-top: 28px;
+}
+.member-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 20px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+}
+.member-row .avatar {
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    border: 1px solid #39577f;
+    background: #1b2e4b;
+    border-radius: 12px;
+}
+.member-details {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.member-details small {
+    display: block;
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 11px;
+}
+.member-form {
+    margin: 24px 0 12px;
+    padding: 24px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px 14px;
+}
+.member-form label {
+    grid-column: 1 / -1;
+    font-size: 12px;
+    color: var(--muted);
+}
+.settings-note,
+#audit-description {
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--muted);
+    max-width: 760px;
+}
+#audit-description {
+    margin-bottom: 24px;
+}
+.audit-entry {
+    border-left: 3px solid #486fa4;
+}
+.audit-entry h3 {
+    font-size: 14px;
+}
+.connection-heading {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 20px;
+}
+.connection-heading h3 {
+    margin: 4px 0 0;
+    font-size: 21px;
+}
+.connection-icon {
+    display: grid;
+    place-items: center;
+    width: 54px;
+    height: 54px;
+    flex-shrink: 0;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #2c6bc6, #244276);
+    color: #dceaff;
+    font-size: 28px;
+    border: 1px solid #6b9ddd66;
+}
+.notification-card {
+    max-width: 900px;
+    padding: 30px;
+    background: linear-gradient(145deg, #1e345344, transparent 65%), var(--surface);
+}
+.notification-card > p:first-of-type {
+    color: #c1cbdc;
+    line-height: 1.8;
+    max-width: 700px;
+}
+.notification-card .settings-note + .settings-note {
+    margin-top: 12px;
+}
+#telegram-status {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-top: 24px;
+    font-size: 12px;
+    color: #bfcee5;
+}
+#telegram-status::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #7e8da6;
+    flex-shrink: 0;
+}
+#telegram-status[data-state='connected']::before {
+    background: #7eacff;
+    box-shadow: 0 0 0 4px #4488ee18;
+}
+.login-card .eyebrow {
+    margin: 4px 0 -7px;
+}
+@media (max-width: 720px) {
+    .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+    }
+    .nav-icon {
+        width: 16px;
+        height: 16px;
+    }
+    .page-heading > div {
+        min-width: 0;
+    }
+    #refresh {
+        width: 40px;
+        height: 40px;
+        padding: 8px;
+        font-size: 18px;
+    }
+    .refresh-label {
+        display: none;
+    }
+    .secure {
+        padding: 5px 8px;
+    }
+    .notification-card {
+        padding: 22px;
+    }
+    .connection-heading h3 {
+        font-size: 18px;
+    }
+    .member-form {
+        grid-template-columns: 1fr;
+        padding: 20px;
+    }
+    .member-row {
+        flex-wrap: wrap;
+    }
+    .member-row button {
+        margin-left: auto;
+    }
+    .sidebar-footer #identity {
+        overflow-wrap: anywhere;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        transition: none !important;
+    }
 }

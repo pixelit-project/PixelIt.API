@@ -43,7 +43,36 @@ function createGithubAuth(env) {
         return { id: String(user.data.id), login: user.data.login };
     }
 
-    return { configured, enabled, ownerId, authorize, identify };
+    async function lookupUser(login) {
+        if (typeof login !== 'string' || !/^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/.test(login)) {
+            return null;
+        }
+        try {
+            const response = await axios.get(`https://api.github.com/users/${encodeURIComponent(login)}`, {
+                timeout: 10000,
+                maxContentLength: 32768,
+                maxBodyLength: 32768,
+                maxRedirects: 0,
+                headers: { Accept: 'application/vnd.github+json' },
+            });
+            const user = response.data;
+            if (user.type === 'Organization' || user.type === 'Bot') {
+                return null;
+            }
+            if (!Number.isSafeInteger(user.id) || user.id < 1 || user.type !== 'User' ||
+                typeof user.login !== 'string' || !/^[a-zA-Z0-9-]{1,39}$/.test(user.login)) {
+                throw new Error('Invalid GitHub account');
+            }
+            return { id: String(user.id), login: user.login };
+        } catch (error) {
+            if (error.response?.status === 404) {
+                return null;
+            }
+            throw error;
+        }
+    }
+
+    return { configured, enabled, ownerId, authorize, identify, lookupUser };
 }
 
 module.exports = createGithubAuth;

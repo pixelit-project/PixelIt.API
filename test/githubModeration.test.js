@@ -7,12 +7,18 @@ const members = new Set();
 let identity = { id: '1', login: 'owner' };
 let actor;
 let identificationCalls = 0;
+let lookupCalls = 0;
+let lastMembership;
 const app = express();
 app.use(express.json());
 require('../routes/moderation')(app, {
+    rememberIdentity: async () => {},
+    listModerationAudit: async () => [{ id: 9, action: 'approve', actor: 'github:2' }],
+    listAdminAudit: async () => [{ id: 8, action: 'moderator_added' }],
     isModerator: async (id) => members.has(id),
     listModerators: async () => [...members].map((github_id) => ({ github_id })),
-    setModerator: async (id, enabled) => {
+    setModerator: async (id, enabled, actor, login) => {
+        lastMembership = { id, enabled, actor, login };
         if (enabled) {
             members.add(id);
         } else {
@@ -27,6 +33,12 @@ require('../routes/moderation')(app, {
     list: async () => [],
 }, { invalidateBitmaps() {} }, {}, {
     configured: true, enabled: true, ownerId: '1',
+    lookupUser: async (login) => {
+        lookupCalls++;
+        if (login === 'missing') { return null; }
+        if (login === 'failure') { throw new Error('upstream failure'); }
+        return login === 'owner' ? { id: '1', login } : { id: '2', login: 'moderator' };
+    },
     authorize: (state, challenge) => `https://github.com/login/oauth/authorize?state=${state}&code_challenge=${challenge}`,
     identify: async (code, verifier) => {
         identificationCalls++;
@@ -81,14 +93,27 @@ test('GitHub state binding, role enforcement, membership revocation and attribut
     assert.equal((await request(callback, undefined, pending.cookie)).status, 403);
     const ownerCookie = sessionCookie(ownerLogin);
     assert.equal((await request('/api/admin/me', undefined, ownerCookie)).status, 200);
+    assert.equal((await request('/api/admin/audit/admin', undefined, ownerCookie)).status, 200);
+    assert.equal((await request('/api/admin/audit/moderation?before=bad', undefined, ownerCookie)).status, 400);
+    assert.equal((await request('/api/admin/moderators', { githubLogin: '../bad', enabled: true }, ownerCookie)).status, 400);
+    assert.equal(lookupCalls, 0);
+    assert.equal((await request('/api/admin/moderators', { githubLogin: 'missing', enabled: true }, ownerCookie)).status, 404);
+    assert.equal((await request('/api/admin/moderators', { githubLogin: 'failure', enabled: true }, ownerCookie)).status, 503);
+    assert.equal((await request('/api/admin/moderators', { githubLogin: 'owner', enabled: true }, ownerCookie)).status, 400);
+    assert.equal(members.size, 0);
     assert.equal((await request('/api/admin/moderators', { githubId: '2', enabled: true }, ownerCookie, 'https://evil.test')).status, 403);
     assert.equal(members.size, 0);
     assert.equal((await request('/api/admin/moderators', { githubId: '1', enabled: false }, ownerCookie)).status, 400);
-    assert.equal((await request('/api/admin/moderators', { githubId: '2', enabled: true }, ownerCookie)).status, 204);
+    assert.equal((await request('/api/admin/moderators', { githubLogin: '@moderator', enabled: true }, ownerCookie)).status, 204);
+    assert.deepEqual(lastMembership, { id: '2', enabled: true, actor: 'github:1', login: 'moderator' });
     identity = { id: '2', login: 'moderator' };
     const moderatorLogin = await signIn();
     const moderatorCookie = sessionCookie(moderatorLogin);
     assert.equal((await request('/api/admin/moderators', undefined, moderatorCookie)).status, 403);
+    assert.equal((await request('/api/admin/audit/admin', undefined, moderatorCookie)).status, 403);
+    const moderationAudit = await request('/api/admin/audit/moderation', undefined, moderatorCookie);
+    assert.equal(moderationAudit.status, 200);
+    assert.equal((await moderationAudit.json())[0].actor, 'github:2');
     assert.equal((await request('/api/admin/moderators', { githubId: '3', enabled: true }, moderatorCookie)).status, 403);
     assert.equal((await request('/api/admin/reports/1/approve', {}, moderatorCookie)).status, 204);
     assert.equal(actor, 'github:2');

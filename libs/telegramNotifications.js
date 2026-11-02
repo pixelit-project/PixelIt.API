@@ -61,6 +61,13 @@ function createTelegramNotifications(repo, env = process.env, transport = axios)
         try {
             const connected = await repo.connect(hash(match[1]), chatId, ownerId);
             log.info('TelegramConnect: link accepted {accepted}.', { accepted: connected });
+            if (connected) {
+                return {
+                    method: 'sendMessage',
+                    chat_id: chatId,
+                    text: 'Telegram ist verbunden. Du erhältst ab jetzt Benachrichtigungen über neue Icon-Meldungen. Mit /stop kannst du sie jederzeit abschalten.',
+                };
+            }
         } catch (error) {
             // A Telegram chat can belong to only one account. Do not expose SQL values.
             if (error.code === 'ER_DUP_ENTRY') {

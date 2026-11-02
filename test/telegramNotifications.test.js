@@ -48,8 +48,13 @@ test('Telegram links are hashed, single-use and private-chat only; stop removes 
     await service.update({ message: { ...message, chat: { id: 456, type: 'group' } } });
     await service.update({ message: { ...message, from: { id: 789 } } });
     assert.equal(connections, 0);
-    await service.update({ message });
-    await service.update({ message });
+    const confirmation = await service.update({ message });
+    assert.equal(confirmation.method, 'sendMessage');
+    assert.equal(confirmation.chat_id, '456');
+    assert.match(confirmation.text, /Telegram ist verbunden/);
+    assert.match(confirmation.text, /neue Icon-Meldungen/);
+    assert.match(confirmation.text, /\/stop/);
+    assert.equal(await service.update({ message }), undefined);
     assert.equal(connections, 1);
     await service.update({ message: { ...message, text: '/stop' } });
     assert.equal(stopped, '456');

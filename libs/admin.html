@@ -13,18 +13,32 @@
                 PixelIt
                 <span class="admin-label">ADMIN</span>
             </a>
-            <p class="nav-label">WORKSPACE</p>
+            <p class="nav-label">GALLERY WORKSPACE</p>
             <nav class="admin-navigation" aria-label="Administration">
                 <button id="reports-tab" class="nav-item" aria-pressed="true" disabled>
-                    <span>▤</span>
-                    Icon-Meldungen
+                    <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h5M8 17h3"/></svg>
+                    <span>Icon-Meldungen</span>
                 </button>
                 <button id="statistics-tab" class="nav-item" aria-pressed="false" disabled>
-                    <span>▥</span>
-                    Statistik
+                    <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M7 16v-5m5 5V5m5 11V8"/></svg>
+                    <span>Statistik</span>
                 </button>
-            <button id="notifications-tab" class="nav-item" aria-pressed="false" hidden>Benachrichtigungen</button>
-                <button id="moderators-tab" class="nav-item" aria-pressed="false" hidden>Moderatoren</button>
+            <button id="moderation-audit-tab" class="nav-item" aria-pressed="false">
+                    <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l1 2h3v15H5V6h3zM9 11h6M9 15h6"/></svg>
+                    <span>Moderationsprotokoll</span>
+                </button>
+                <button id="admin-audit-tab" class="nav-item" aria-pressed="false" hidden>
+                    <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6zM9 12l2 2 4-4"/></svg>
+                    <span>Admin-Protokoll</span>
+                </button>
+                <button id="notifications-tab" class="nav-item" aria-pressed="false" hidden>
+                    <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 00-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+                    <span>Benachrichtigungen</span>
+                </button>
+                <button id="moderators-tab" class="nav-item" aria-pressed="false" hidden>
+                    <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0112 0v3M17 5a3 3 0 010 6m1 4a5 5 0 013 5"/></svg>
+                    <span>Moderatoren</span>
+                </button>
             </nav>
             <div class="sidebar-footer">
                 <span class="avatar">A</span>
@@ -39,9 +53,9 @@
                 <span>
                     Gallery
                     <span class="slash">/</span>
-                    Moderation
+                    <span id="breadcrumb">Moderation</span>
                 </span>
-                <span class="secure">● Geschützter Bereich</span>
+                <span class="secure"><span class="secure-dot" aria-hidden="true"></span> Geschützter Bereich</span>
             </header>
             <div class="page-heading">
                 <div>
@@ -49,7 +63,7 @@
                     <h1 id="page-title">Icon-Meldungen</h1>
                     <p id="page-subtitle" class="subtitle">Meldungen prüfen und Icons verwalten.</p>
                 </div>
-                <button id="refresh" class="secondary" hidden>↻ Aktualisieren</button>
+                <button id="refresh" class="secondary" aria-label="Ansicht aktualisieren" hidden><span aria-hidden="true">↻</span><span class="refresh-label">Aktualisieren</span></button>
             </div>
             <p id="message" role="status" aria-live="polite" hidden></p>
             <section id="panel" hidden>
@@ -133,27 +147,37 @@
                         <h2>Telegram-Benachrichtigungen</h2>
                         <button id="notifications-logout" class="quiet">Abmelden ↗</button>
                     </div>
-                    <article class="telemetry-card">
-                        <p>Erhalte freiwillig Hinweise auf neue Icon-Meldungen. Mehrere Meldungen werden gebündelt. Die Bearbeitung erfolgt weiterhin in der Admin-UI.</p>
+                    <article class="telemetry-card notification-card">
+                        <div class="connection-heading">
+                            <span class="connection-icon" aria-hidden="true">↗</span>
+                            <div><span class="eyebrow">IMMER IM BILD</span><h3>Meldungen direkt in Telegram</h3></div>
+                        </div>
+                        <p>Erhalte Hinweise auf neue Icon-Meldungen. Mehrere Meldungen werden gebündelt. Die Bearbeitung erfolgt weiterhin in der Admin-UI.</p>
                         <p id="telegram-status" role="status" aria-live="polite">Status wird geladen …</p>
                         <div class="telegram-actions">
                             <button id="telegram-connect" class="primary" hidden>Telegram verbinden</button>
                             <a id="telegram-link" class="secondary" target="_blank" rel="noopener noreferrer" hidden>Bot öffnen und Start drücken</a>
                             <button id="telegram-disconnect" class="secondary" hidden>Verbindung entfernen</button>
                         </div>
-                        <p>Der Verknüpfungslink gilt fünf Minuten. Teile ihn nicht. Nach dem Start beim Bot bitte „Aktualisieren“ klicken. Du kannst Benachrichtigungen hier oder mit /stop beim Bot abschalten.</p>
-                        <p>Telegram erhält deine Chat-ID, die Anzahl neuer Meldungen und den Link zur Admin-UI. Meldungstexte werden nicht übertragen.</p>
+                        <p class="settings-note">Der Verknüpfungslink gilt fünf Minuten. Teile ihn nicht. Nach dem Start beim Bot bitte „Aktualisieren“ klicken. Du kannst Benachrichtigungen hier oder mit /stop beim Bot abschalten.</p>
+                        <p class="settings-note">Telegram erhält deine Chat-ID, die Anzahl neuer Meldungen und den Link zur Admin-UI. Meldungstexte werden nicht übertragen.</p>
                     </article>
+                </div>
+                <div id="audit-view" hidden>
+                    <div class="queue-heading"><h2 id="audit-heading">Auditlog</h2><button id="audit-logout" class="quiet">Abmelden ↗</button></div>
+                    <p id="audit-description"></p>
+                    <div id="audit-list" class="reports" aria-live="polite"></div>
+                    <div class="load-more"><button id="audit-more" class="secondary" hidden>Ältere Einträge</button></div>
                 </div>
                 <div id="moderators-view" hidden>
                     <div class="queue-heading"><h2>Moderatoren verwalten</h2><button id="moderators-logout" class="quiet">Abmelden ↗</button></div>
                     <p>Freigeschaltete GitHub-Accounts können Meldungen bearbeiten und Icons wiederherstellen. Maximal 100 Moderatoren.</p>
-                    <form id="moderator-form" class="toolbar">
-                        <label for="github-id">GitHub-Nutzer-ID</label>
-                        <input id="github-id" required pattern="[1-9][0-9]{0,19}" maxlength="20" inputmode="numeric" placeholder="z. B. 123456" />
+                    <form id="moderator-form" class="member-form">
+                        <label for="github-login">GitHub-Benutzername</label>
+                        <input id="github-login" required maxlength="40" autocomplete="off" spellcheck="false" placeholder="z. B. octocat" />
                         <button class="primary">Moderator hinzufügen</button>
                     </form>
-                    <p>Verwende die numerische ID des Accounts, nicht den Benutzernamen. Sie steht im Feld „id“ unter https://api.github.com/users/BENUTZERNAME.</p>
+                    <p class="settings-note">Gib den GitHub-Benutzernamen ein. Der Account wird geprüft und über seine feste ID freigeschaltet. Namen können sich ändern; die Berechtigung bleibt beim selben Account.</p>
                     <div id="moderator-list" class="reports"></div>
                 </div>
                 <div id="statistics-view" hidden>

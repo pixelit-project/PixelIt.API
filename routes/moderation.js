@@ -279,7 +279,7 @@ function registerModerationRoutes(
             return;
         }
         try {
-            const updated = await repo.decide(reportId, action, req.admin.actor);
+            const updated = await repo.decide(reportId, action, req.admin.actor, req.admin.login || null);
             if (!updated) {
                 log.warn('AdminDecision: report {reportId}, action {action} rejected due to state conflict.', {
                     ...getRequestContext(req),
@@ -348,6 +348,7 @@ function registerModerationRoutes(
                 res.status(403).send('Dieser GitHub-Account ist nicht freigeschaltet.');
                 return;
             }
+            await repo.rememberIdentity(user.id, user.login);
             removeExpiredSessions();
             sessions.delete(getSessionToken(req));
             if (sessions.size >= maximumSessions) {
@@ -386,15 +387,40 @@ function registerModerationRoutes(
     }
 
     async function updateModerator(req, res, next) {
-        const { githubId, enabled } = req.body || {};
-        if (typeof githubId !== 'string' || !/^[1-9][0-9]{0,19}$/.test(githubId) ||
-            typeof enabled !== 'boolean' || githubId === github.ownerId) {
+        const { githubId: suppliedId, githubLogin, enabled } = req.body || {};
+        let githubId = suppliedId;
+        let login = null;
+        const hasLogin = githubLogin !== undefined;
+        const validLogin = typeof githubLogin === 'string' && /^@?[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/.test(githubLogin);
+        const validId = typeof githubId === 'string' && /^[1-9][0-9]{0,19}$/.test(githubId);
+        if (typeof enabled !== 'boolean' || (hasLogin ? !validLogin || suppliedId !== undefined : !validId)) {
             log.warn('ModeratorManagement: invalid request.', getRequestContext(req));
             res.sendStatus(400);
             return;
         }
         try {
-            if (!(await repo.setModerator(githubId, enabled, req.admin.actor))) {
+            if (hasLogin) {
+                let user;
+                try {
+                    user = await github.lookupUser(githubLogin.replace(/^@/, ''));
+                } catch (error) {
+                    log.warn('ModeratorManagement: GitHub lookup unavailable.', getRequestContext(req));
+                    res.sendStatus(503);
+                    return;
+                }
+                if (!user) {
+                    res.sendStatus(404);
+                    return;
+                }
+                githubId = user.id;
+                login = user.login;
+            }
+            if (githubId === github.ownerId) {
+                log.warn('ModeratorManagement: owner modification rejected.', getRequestContext(req));
+                res.sendStatus(400);
+                return;
+            }
+            if (!(await repo.setModerator(githubId, enabled, req.admin.actor, login, req.admin.login || null))) {
                 res.sendStatus(409);
                 return;
             }
@@ -412,6 +438,26 @@ function registerModerationRoutes(
             res.sendStatus(204);
         } catch (error) {
             handleRequestError(error, req, next, 'UpdateModerator');
+        }
+    }
+
+    async function getAudit(req, res, next, kind) {
+        const before = req.query.before === undefined ? Number.MAX_SAFE_INTEGER : Number(req.query.before);
+        if (!Number.isSafeInteger(before) || before < 1) {
+            log.warn('AdminAudit: invalid pagination cursor.', getRequestContext(req));
+            res.sendStatus(400);
+            return;
+        }
+        try {
+            const entries = kind === 'admin'
+                ? await repo.listAdminAudit(before)
+                : await repo.listModerationAudit(before);
+            log.info('AdminAudit: {kind} log delivered, entries {count}.', {
+                ...getRequestContext(req), kind, count: entries.length, actor: req.admin.actor,
+            });
+            res.json(entries);
+        } catch (error) {
+            handleRequestError(error, req, next, 'AdminAudit');
         }
     }
 
@@ -471,8 +517,12 @@ function registerModerationRoutes(
             return;
         }
         try {
-            await telegram.update(req.body);
-            res.sendStatus(204);
+            const reply = await telegram.update(req.body);
+            if (reply) {
+                res.json(reply);
+            } else {
+                res.sendStatus(204);
+            }
         } catch (error) {
             handleRequestError(error, req, next, 'TelegramWebhook');
         }
@@ -496,6 +546,8 @@ function registerModerationRoutes(
     app.get('/api/admin/telegram', adminReadLimiter, telegramStatus);
     app.post('/api/admin/telegram/link', adminActionLimiter, requireTelegramAccount, telegramLink);
     app.post('/api/admin/telegram/disconnect', adminActionLimiter, requireTelegramAccount, telegramDisconnect);
+    app.get('/api/admin/audit/moderation', adminReadLimiter, (req, res, next) => getAudit(req, res, next, 'moderation'));
+    app.get('/api/admin/audit/admin', adminReadLimiter, requireOwner, (req, res, next) => getAudit(req, res, next, 'admin'));
     app.get('/api/admin/moderators', adminReadLimiter, requireOwner, getModerators);
     app.post('/api/admin/moderators', adminActionLimiter, requireOwner, updateModerator);
     app.get('/api/admin/icons/:id', adminReadLimiter, getIconPreview);

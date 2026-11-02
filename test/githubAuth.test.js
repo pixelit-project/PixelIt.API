@@ -2,6 +2,8 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const axiosPath = require.resolve('axios');
 let mode = 'valid';
+let lookupMode = 'valid';
+let lookups = 0;
 require.cache[axiosPath] = {
     id: axiosPath, filename: axiosPath, loaded: true,
     exports: {
@@ -17,6 +19,17 @@ require.cache[axiosPath] = {
             return { data: mode === 'no-token' ? {} : { access_token: 'token' } };
         },
         async get(url, options) {
+            if (url.includes('/users/')) {
+                lookups++;
+                assert.equal(url, 'https://api.github.com/users/octocat');
+                assert.equal(options.timeout, 10000);
+                assert.equal(options.maxContentLength, 32768);
+                assert.equal(options.maxRedirects, 0);
+                assert.equal(options.headers.Authorization, undefined);
+                if (lookupMode === 'missing') { throw { response: { status: 404 } }; }
+                if (lookupMode === 'rate-limited') { throw { response: { status: 403 } }; }
+                return { data: { id: lookupMode === 'invalid' ? '2' : 2, login: 'Octocat', type: lookupMode === 'organization' ? 'Organization' : 'User' } };
+            }
             assert.equal(options.headers.Authorization, 'Bearer token');
             return { data: mode === 'bad-user' ? { id: '123', login: 'user' } : { id: 123, login: 'user' } };
         },
@@ -39,4 +52,20 @@ test('GitHub OAuth requests minimal identity, uses PKCE and rejects malformed up
     }
     assert.equal(createGithubAuth({}).configured, false);
     assert.equal(createGithubAuth({ ADMIN_GITHUB_CLIENT_ID: 'client' }).enabled, false);
+});
+
+test('moderators are resolved by validated GitHub username with bounded requests and safe missing-user handling', async () => {
+    const github = createGithubAuth({});
+    assert.equal(await github.lookupUser('../admin'), null);
+    assert.equal(await github.lookupUser(''), null);
+    assert.equal(lookups, 0);
+    assert.deepEqual(await github.lookupUser('octocat'), { id: '2', login: 'Octocat' });
+    lookupMode = 'missing';
+    assert.equal(await github.lookupUser('octocat'), null);
+    lookupMode = 'organization';
+    assert.equal(await github.lookupUser('octocat'), null);
+    for (const failure of ['invalid', 'rate-limited']) {
+        lookupMode = failure;
+        await assert.rejects(github.lookupUser('octocat'));
+    }
 });

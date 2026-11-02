@@ -44,11 +44,15 @@ async function requestAdmin(path, body) {
             showLogin();
         }
         const texts = {
+            400: 'Ungültige Eingabe. Bitte prüfe den GitHub-Benutzernamen oder die Anfrage.',
+            404: 'Der GitHub-Account wurde nicht gefunden.',
             401: 'Bitte melde dich an. Deine Sitzung ist möglicherweise abgelaufen.',
-            403: 'Die Anfrage wurde nicht zugelassen. Bitte öffne die konfigurierte HTTPS-Adresse.',
-            409: 'Diese Meldung wurde bereits bearbeitet. Bitte aktualisiere die Ansicht.',
+            403: 'Keine Berechtigung für diese Aktion oder unzulässige Herkunft der Anfrage.',
+            409: path.startsWith('moderators')
+                ? 'Es können maximal 100 Moderatoren freigeschaltet werden.'
+                : 'Diese Meldung wurde bereits bearbeitet. Bitte aktualisiere die Ansicht.',
             429: 'Zu viele Anfragen. Bitte versuche es später erneut.',
-            503: 'Die Administration ist noch nicht eingerichtet.',
+            503: 'Der Dienst ist vorübergehend nicht verfügbar. Bitte versuche es später erneut.',
         };
         throw new Error(texts[response.status] || 'Die Anfrage ist fehlgeschlagen. Bitte versuche es erneut.');
     }
@@ -423,6 +427,9 @@ function showView(view) {
     const statisticsVisible = view === 'statistics';
     getElement('moderation-view').hidden = view !== 'reports';
     getElement('moderators-view').hidden = view !== 'moderators';
+    getElement('audit-view').hidden = !['moderation-audit', 'admin-audit'].includes(view);
+    getElement('moderation-audit-tab').setAttribute('aria-pressed', String(view === 'moderation-audit'));
+    getElement('admin-audit-tab').setAttribute('aria-pressed', String(view === 'admin-audit'));
     getElement('notifications-view').hidden = view !== 'notifications';
     getElement('notifications-tab').setAttribute('aria-pressed', String(view === 'notifications'));
     getElement('moderators-tab').setAttribute('aria-pressed', String(view === 'moderators'));
@@ -433,8 +440,11 @@ function showView(view) {
         reports: ['Icon-Meldungen', 'Meldungen prüfen und Icons verwalten.'],
         statistics: ['Statistik', 'Telemetrie und Geräteverteilung im Überblick.'],
         moderators: ['Moderatoren', 'Moderatoren hinzufügen und Zugriff verwalten.'],
+        'moderation-audit': ['Moderationsprotokoll', 'Wer hat welche Meldung bearbeitet?'],
+        'admin-audit': ['Admin-Protokoll', 'Änderungen an Moderator-Berechtigungen nachvollziehen.'],
         notifications: ['Benachrichtigungen', 'Deine persönlichen Telegram-Einstellungen.'],
     };
+    getElement('breadcrumb').textContent = titles[view][0];
     getElement('page-title').textContent = titles[view][0];
     getElement('page-subtitle').textContent = titles[view][1];
 }
@@ -444,6 +454,8 @@ getElement('logout').onclick = logout;
 getElement('statistics-logout').onclick = logout;
 getElement('refresh').onclick = function refreshCurrentView() {
     const loaders = {
+        'moderation-audit': loadAudit,
+        'admin-audit': loadAudit,
         notifications: loadTelegramStatus,
         moderators: loadModerators,
         statistics: loadStatistics,
@@ -470,11 +482,15 @@ async function loadModerators() {
     try {
         const members = await requestAdmin('moderators');
         const rows = members.map((member) => {
-            const row = createElement('article', 'report');
-            row.append(createElement('span', '', 'GitHub-ID ' + member.github_id));
+            const row = createElement('article', 'member-row');
+            const label = member.github_login ? '@' + member.github_login : 'GitHub-ID ' + member.github_id;
+            const avatar = createElement('span', 'avatar', (member.github_login || '?').slice(0, 1).toUpperCase());
+            const details = createElement('div', 'member-details');
+            details.append(createElement('strong', '', label), createElement('small', '', 'Moderator · Gallery-Verwaltung'));
+            row.append(avatar, details);
             const button = createElement('button', 'secondary', 'Entfernen');
             button.onclick = async () => {
-                if (!window.confirm('Moderator ' + member.github_id + ' entfernen und Zugriff widerrufen?')) {
+                if (!window.confirm('Moderator ' + label + ' entfernen und Zugriff widerrufen?')) {
                     return;
                 }
                 button.disabled = true;
@@ -506,8 +522,8 @@ getElement('moderator-form').onsubmit = async (event) => {
     const button = event.currentTarget.querySelector('button');
     button.disabled = true;
     try {
-        await requestAdmin('moderators', { githubId: getElement('github-id').value, enabled: true });
-        getElement('github-id').value = '';
+        await requestAdmin('moderators', { githubLogin: getElement('github-login').value.trim(), enabled: true });
+        getElement('github-login').value = '';
         await loadModerators();
     } catch (error) {
         showMessage(error.message, true);
@@ -515,6 +531,69 @@ getElement('moderator-form').onsubmit = async (event) => {
         button.disabled = false;
     }
 };
+
+let auditCursor;
+let auditKind;
+let auditRequestGeneration = 0;
+
+async function loadAudit(reset = true) {
+    const kind = currentView === 'admin-audit' ? 'admin' : 'moderation';
+    const generation = ++auditRequestGeneration;
+    const cursor = !reset && auditKind === kind ? auditCursor : null;
+    getElement('audit-heading').textContent = kind === 'admin' ? 'Admin-Protokoll' : 'Moderationsprotokoll';
+    getElement('audit-description').textContent = kind === 'admin'
+        ? 'Hinzufügen und Entfernen von Moderatoren. Pro Seite maximal 50 Einträge.'
+        : 'Ausblenden, Ablehnen und Wiederherstellen durch Moderatoren und Admins. Pro Seite maximal 50 Einträge.';
+    getElement('audit-list').replaceChildren(createElement('p', '', 'Protokoll wird geladen …'));
+    getElement('audit-more').hidden = true;
+    try {
+        const entries = await requestAdmin('audit/' + kind + (cursor ? '?before=' + cursor : ''));
+        if (generation !== auditRequestGeneration || currentView !== kind + '-audit') {
+            return;
+        }
+        auditKind = kind;
+        auditCursor = entries.at(-1)?.id;
+        const labels = {
+            approve: 'Icon ausgeblendet',
+            reject: 'Meldung abgelehnt',
+            restore: 'Icon wiederhergestellt',
+            moderator_added: 'Moderator hinzugefügt',
+            moderator_removed: 'Moderator entfernt',
+        };
+        const rows = entries.map((entry) => {
+            const row = createElement('article', 'audit-entry');
+            const actor = entry.actor_login ? '@' + entry.actor_login : entry.actor;
+            const target = kind === 'admin'
+                ? entry.target_login ? '@' + entry.target_login : 'GitHub-ID ' + entry.target_id
+                : 'Meldung #' + entry.report_id + (entry.icon_id ? ' · Icon #' + entry.icon_id : '');
+            row.append(
+                createElement('h3', '', labels[entry.action] || entry.action),
+                createElement('p', '', actor + ' · ' + target),
+                createElement('small', '', formatDate(entry.created_at) + ' · Ereignis #' + entry.id)
+            );
+            return row;
+        });
+        getElement('audit-list').replaceChildren(...rows);
+        if (!entries.length) {
+            getElement('audit-list').append(createElement('p', '', 'Keine weiteren protokollierten Aktionen.'));
+        }
+        getElement('audit-more').hidden = entries.length < 50;
+        showMessage('');
+    } catch (error) {
+        if (generation === auditRequestGeneration && currentView === kind + '-audit') {
+            getElement('audit-list').replaceChildren(createElement('p', '', error.message));
+        }
+    }
+}
+
+getElement('audit-logout').onclick = logout;
+getElement('audit-more').onclick = () => loadAudit(false);
+for (const kind of ['moderation', 'admin']) {
+    getElement(kind + '-audit-tab').onclick = () => {
+        showView(kind + '-audit');
+        loadAudit();
+    };
+}
 
 async function loadTelegramStatus() {
     const status = getElement('telegram-status');
@@ -524,6 +603,7 @@ async function loadTelegramStatus() {
     getElement('telegram-disconnect').hidden = true;
     try {
         const result = await requestAdmin('telegram');
+        status.dataset.state = result.connected ? 'connected' : result.pending ? 'pending' : 'disconnected';
         if (!result.available) {
             status.textContent = 'Telegram ist auf diesem Server nicht verfügbar. Bestehende Verbindungen können entfernt werden.';
         } else if (result.connected) {
@@ -579,7 +659,9 @@ async function initializeDashboard() {
     try {
         const identity = await requestAdmin('me');
         getElement('notifications-tab').hidden = !identity.id;
-        getElement('identity').textContent = identity.login + ' · ' + identity.role;
+        getElement('admin-audit-tab').hidden = identity.role !== 'admin';
+        getElement('identity').textContent = identity.login + ' · ' + (identity.role === 'admin' ? 'Admin' : 'Moderator');
+        document.querySelector('.sidebar-footer .avatar').textContent = identity.login.slice(0, 1).toUpperCase();
         getElement('moderators-tab').hidden = identity.role !== 'admin' || !identity.id;
         await loadReports();
     } catch (error) {

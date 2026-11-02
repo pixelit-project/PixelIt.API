@@ -1,0 +1,13 @@
+CREATE TABLE IF NOT EXISTS pixel_it_github_names (
+ actor VARCHAR(64) NOT NULL PRIMARY KEY,
+ github_login VARCHAR(39) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS pixel_it_admin_audit (
+ id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ action ENUM('moderator_added','moderator_removed') NOT NULL,
+ actor VARCHAR(64) NOT NULL,
+ actor_login VARCHAR(39) NULL,
+ target_id VARCHAR(20) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ target_login VARCHAR(39) NULL,
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

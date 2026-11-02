@@ -25,8 +25,12 @@ account is automatically promoted. GitHub login requests no repository or email 
 The existing `GITHUB_TOKEN` for release metadata is unrelated and is not used for login.
 
 Open `/admin/` and choose **Mit GitHub anmelden**. As owner, open **Moderatoren**
-to add or remove accounts by their numeric GitHub IDs (from the same public user API).
-Verify each ID belongs to the intended person. At most 100 moderators are stored.
+to add accounts by their GitHub username (optionally prefixed with `@`). The API
+resolves the current personal account once through GitHub and stores its immutable
+ID. Removal uses that stored ID, so it also works during a GitHub outage or after
+a username change. Organizations and bot accounts cannot be added by name.
+At most 100 moderators are stored. Existing accounts display their last known
+username after their next successful login, otherwise their ID.
 Moderators can review reports, hide/restore icons and view aggregate statistics;
 only the owner can manage membership. Signing in with an unlisted account returns
 403. Membership is checked on each authenticated request; removal revokes access
@@ -92,9 +96,18 @@ Endpoints:
   and callback, both sharing the login attempt limit.
 - `GET /api/admin/me`: current account ID, login and role; admin read limit.
 - `GET /api/admin/moderators`: owner-only list, at most 100 entries; admin read limit.
-- `POST /api/admin/moderators`: owner-only JSON `{ "githubId": "123", "enabled": true }`;
-  `false` removes membership. Requires matching Origin and the admin action limit.
-  Invalid input or attempts to modify the owner return 400; a full directory returns 409.
+- `POST /api/admin/moderators`: owner-only JSON `{ "githubLogin": "octocat", "enabled": true }`;
+  `false` removes membership. Existing clients can still use `githubId` instead;
+  sending both fields is invalid. Requires matching Origin and the admin action limit.
+  Invalid input or attempts to modify the owner return 400; an unknown personal
+  account returns 404, a full directory returns 409 and an unavailable/rate-limited
+  GitHub lookup returns 503 without changing permissions. Username lookups are
+  unauthenticated, limited to one ten-second request with a 32 KB response cap,
+  without redirects, retries or a cache; normal GitHub public API limits apply.
+- `GET /api/admin/audit/moderation?before=123`: moderation decisions, available to
+  moderators and the owner; shares the admin read limit.
+- `GET /api/admin/audit/admin?before=123`: membership changes, owner-only; shares
+  the admin read limit.
 - `POST /api/admin/logout`: revokes the session.
 - `GET /api/admin/reports?before=123`: newest first, maximum 50 records; pass the
   last record ID as `before` to continue.
@@ -117,6 +130,30 @@ added by this API change.
 `GET /api/admin/icons/:id` supplies an authenticated, bounded icon preview, including
 hidden icons. The admin UI draws the first frame on demand; it does not autoplay
 animations or send anything to a display. Report text is rendered as plain text.
+
+## Audit views
+
+**Moderationsprotokoll** shows committed hide/reject/restore decisions by both
+moderators and admins, with actor, report/icon ID and timestamp. Existing moderation
+history remains available. GitHub names are the latest name saved at login or a
+moderation/membership action; immutable `github:ID` remains the authority. Older
+unknown names fall back to the stored actor. The legacy shared password account
+continues to appear as `admin`.
+
+**Admin-Protokoll**, visible only to the owner, shows moderator additions and removals,
+including the acting admin, target account and timestamp. Names are stored as known
+at the time of the administrative action. Membership changes, Telegram subscription
+removal and the audit insert commit in one transaction; an audit failure rolls the
+change back. Duplicate additions and removal of absent accounts create no extra
+events. This administrative history starts with this update; earlier changes are
+not reconstructed. Login/logout and Telegram preferences remain in operational logs.
+
+Both endpoints return newest-first pages of at most 50 events. Pass the last event
+ID as `before` for older events; the UI replaces the current page rather than loading
+an unbounded history. Refresh returns to the newest page. There is no background
+polling. No report reasons, tokens, cookies, chat IDs or IP addresses are included.
+The new migration only adds the audit and name tables; existing tables and migration
+history remain intact. No firmware or companion client changes are required.
 
 ## Rate limits and operational logs
 

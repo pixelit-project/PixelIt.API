@@ -195,7 +195,8 @@ The API creates the moderation tables automatically before accepting requests.
 The MySQL account needs `CREATE` permission in addition to its existing access.
 Enable GitHub login with `ADMIN_ORIGIN` (public HTTPS origin, no trailing slash),
 `ADMIN_GITHUB_CLIENT_ID`, `ADMIN_GITHUB_CLIENT_SECRET` and `ADMIN_GITHUB_OWNER_ID`
-(your numeric GitHub ID). The owner manages up to 100 moderators in the admin UI.
+(your numeric GitHub ID). The owner manages up to 100 moderators by GitHub username in the admin UI.
+Separate audit views show moderation decisions and owner-only membership changes.
 Without GitHub configuration, existing `ADMIN_PASSWORD` login remains supported.
 
 See [moderation setup and API reference](docs/moderation.md) for setup,
@@ -206,6 +207,11 @@ at startup; see [Telegram setup](docs/telegram.md).
 ## Changelog
 
 ### 2.1.1 (2026-11-02)
+
+- (o0shojo0o) Refresh the dark admin workspace with consistent navigation icons, clearer cards and account settings, and scrollable mobile navigation.
+
+- (o0shojo0o) Add separate moderation and owner-only administrative audit views; record moderator membership changes transactionally and allow adding moderators by GitHub username while retaining stable account IDs.
+- (o0shojo0o) Confirm successful Telegram account linking once in the bot's private chat.
 
 - (o0shojo0o) Register the Telegram webhook automatically at startup while preserving queued updates; retry failed registrations with increasing delays without preventing API startup.
 

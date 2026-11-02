@@ -2,29 +2,32 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 let count = 0;
 let lock = 1;
-let failWrite = false;
-let released = 0;
-let unlocked = 0;
-let writes = [];
+let failAudit = false;
+let existing = [];
+let calls = [];
 const connection = {
+    beginTransaction: async () => calls.push('begin'),
+    commit: async () => calls.push('commit'),
+    rollback: async () => calls.push('rollback'),
     async query(sql) {
+        calls.push(sql);
         if (sql.includes('GET_LOCK')) {
             return [[{ acquired: lock }]];
-        }
-        if (sql.includes('RELEASE_LOCK')) {
-            unlocked++;
         }
         return [[{ count }]];
     },
     async execute(sql, values) {
-        if (failWrite) {
-            throw new Error('write failure');
+        calls.push({ sql, values });
+        if (sql.includes('SELECT m.github_id')) {
+            return [existing];
         }
-        writes.push({ sql, values });
-        return [{}];
+        if (failAudit && sql.includes('INSERT INTO pixel_it_admin_audit')) {
+            throw new Error('audit write failed');
+        }
+        return [{ affectedRows: 1 }];
     },
     release() {
-        released++;
+        calls.push('release');
     },
 };
 const mysql = require.resolve('mysql2/promise');
@@ -33,22 +36,41 @@ require.cache[mysql] = {
     exports: { createPool: () => ({ getConnection: async () => connection }) },
 };
 const repo = require('../libs/moderationRepo');
-test('directory writes are parameterized, capped and release the distributed lock on failure', async () => {
-    assert.equal(await repo.setModerator('2', true, 'github:1'), true);
-    assert.deepEqual(writes[0].values, ['2', 'github:1']);
+const writes = () => calls.filter((call) => typeof call === 'object');
+test('membership and its named admin audit commit together, with bounded membership and no duplicate events', async () => {
+    assert.equal(await repo.setModerator('2', true, 'github:1', 'octocat', 'owner'), true);
+    assert.deepEqual(writes().find((call) => call.sql.includes('INSERT INTO pixel_it_admin_audit')).values,
+        ['moderator_added', 'github:1', 'owner', '2', 'octocat']);
+    assert.ok(calls.indexOf('commit') > calls.indexOf('begin'));
+    assert.equal(calls.at(-1), 'release');
     count = 100;
+    calls = [];
     assert.equal(await repo.setModerator('3', true, 'github:1'), false);
-    assert.equal(writes.length, 1);
-    assert.equal(await repo.setModerator('2', false, 'github:1'), true);
-    assert.match(writes[1].sql, /DELETE FROM pixel_it_telegram/);
-    assert.match(writes[2].sql, /DELETE FROM pixel_it_moderators/);
-    assert.deepEqual(writes[1].values, ['2']);
-    failWrite = true;
-    await assert.rejects(repo.setModerator('2', false, 'github:1'));
-    assert.equal(unlocked, 4);
-    assert.equal(released, 4);
+    assert.ok(calls.includes('rollback'));
+    assert.ok(!writes().some((call) => call.sql.includes('INSERT INTO pixel_it_admin_audit')));
+    existing = [{ github_id: '2', github_login: 'octocat' }];
+    calls = [];
+    assert.equal(await repo.setModerator('2', true, 'github:1', 'renamed'), true);
+    assert.ok(!writes().some((call) => call.sql.includes('INSERT INTO pixel_it_admin_audit')));
+    calls = [];
+    assert.equal(await repo.setModerator('2', false, 'github:1', null, 'owner'), true);
+    assert.deepEqual(writes().find((call) => call.sql.includes('INSERT INTO pixel_it_admin_audit')).values,
+        ['moderator_removed', 'github:1', 'owner', '2', 'octocat']);
+    assert.ok(writes().some((call) => call.sql.includes('DELETE FROM pixel_it_telegram')));
+    assert.ok(writes().some((call) => call.sql.includes('DELETE FROM pixel_it_moderators')));
+});
+
+test('audit failures roll back membership changes and always release the directory lock', async () => {
+    failAudit = true;
+    calls = [];
+    await assert.rejects(repo.setModerator('2', false, 'github:1'), /audit write failed/);
+    assert.ok(calls.includes('rollback'));
+    assert.ok(!calls.includes('commit'));
+    assert.ok(calls.some((call) => typeof call === 'string' && call.includes('RELEASE_LOCK')));
+    assert.equal(calls.at(-1), 'release');
     lock = 0;
-    await assert.rejects(repo.setModerator('2', false, 'github:1'));
-    assert.equal(unlocked, 4);
-    assert.equal(released, 5);
+    calls = [];
+    await assert.rejects(repo.setModerator('2', false, 'github:1'), /busy/);
+    assert.ok(!calls.includes('begin'));
+    assert.equal(calls.at(-1), 'release');
 });

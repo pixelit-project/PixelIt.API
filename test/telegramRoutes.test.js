@@ -6,7 +6,7 @@ process.env.API_ADMIN_LOGIN_LIMIT_MAX = '100';
 const calls = [];
 const app = express();
 app.use(express.json());
-require('../routes/moderation')(app, { isModerator: async () => true }, {}, {}, {
+require('../routes/moderation')(app, { isModerator: async () => true, rememberIdentity: async () => {} }, {}, {}, {
     configured: true, enabled: true, ownerId: '1',
     authorize: (state) => 'https://github.com/?state=' + state,
     identify: async () => ({ id: '2', login: 'mod' }),
@@ -16,7 +16,10 @@ require('../routes/moderation')(app, { isModerator: async () => true }, {}, {}, 
     status: async (id) => { calls.push(['status', id]); return { available: true, connected: false }; },
     link: async (id) => { calls.push(['link', id]); return { url: 'https://t.me/test?start=secret' }; },
     disconnect: async (id) => { calls.push(['disconnect', id]); },
-    update: async (body) => { calls.push(['update', body]); },
+    update: async (body) => {
+        calls.push(['update', body]);
+        return body.update_id === 2 ? { method: 'sendMessage', chat_id: '456', text: 'Telegram ist verbunden.' } : undefined;
+    },
 });
 const server = app.listen(0, '127.0.0.1');
 after(() => new Promise((resolve) => server.close(resolve)));
@@ -37,6 +40,10 @@ test('Telegram settings require a session, bind to its identity and enforce Orig
     const webhook = await request('/api/telegram/webhook', { update_id: 1 }, { 'X-Telegram-Bot-Api-Secret-Token': 'webhook-secret' });
     assert.equal(webhook.status, 204);
     assert.deepEqual(calls.pop(), ['update', { update_id: 1 }]);
+    const confirmation = await request('/api/telegram/webhook', { update_id: 2 }, { 'X-Telegram-Bot-Api-Secret-Token': 'webhook-secret' });
+    assert.equal(confirmation.status, 200);
+    assert.deepEqual(await confirmation.json(), { method: 'sendMessage', chat_id: '456', text: 'Telegram ist verbunden.' });
+    calls.pop();
     const start = await request('/api/admin/github/login');
     const state = new URL(start.headers.get('location')).searchParams.get('state');
     const login = await request(`/api/admin/github/callback?state=${state}&code=code`, undefined, {
