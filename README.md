@@ -150,6 +150,12 @@ requests time out after 10 seconds; failures return HTTP 502 and timeouts return
 HTTP 504. Failed upstream requests are not cached as empty release lists.
 
 An empty database returns valid empty statistics and bitmap lists.
+`LastVersion` and `Releases` accept `?includePrereleases=true` to include published
+prereleases alongside stable releases, retaining their existing bounded response
+formats and shared cache. `Releases` returns up to four stable releases plus up to
+four prereleases when opted in. All other values preserve stable-only behavior. Deploy
+this API support before enabling beta searches in firmware/WebUI.
+
 `LastVersion` and `LastRelease` return `{}` when no stable release is available.
 `OfficialReleases` and `Releases` exclude prereleases; draft releases are ignored.
 
@@ -205,6 +211,10 @@ Telegram for bundled notifications about new reports. Webhook registration is au
 at startup; see [Telegram setup](docs/telegram.md).
 
 ## Changelog
+
+### Unreleased
+
+- (o0shojo0o) Add optional prerelease selection to LastVersion and Releases; stable-only remains the default.
 
 ### 2.2.0 (2026-11-02)
 

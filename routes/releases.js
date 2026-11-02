@@ -23,7 +23,7 @@ async function getLastVersion(req, res) {
             },
             600
         )) ?? [];
-    const lastReleaseData = { ...(releases.find((release) => release.prerelease === false) || {}) };
+    const lastReleaseData = { ...(releases.find((release) => (release.prerelease === false || (req.query.includePrereleases === 'true' && release.prerelease === true))) || {}) };
 
     for (const key of ['downloads', 'downloadURL', 'fwdownloads', 'releaseNoteArray', 'readmeLink', 'date']) {
         delete lastReleaseData[key];
@@ -117,8 +117,12 @@ async function getReleases(req, res) {
         )) ?? [];
 
     if (releases.length > 0) {
-        // No pre-release and the latest 4 releases
-        releases = releases.filter((x) => x.prerelease == false).slice(0, 4);
+        // Retain four stable releases even when several betas were published recently.
+        const stable = releases.filter((release) => release.prerelease === false).slice(0, 4);
+        const prereleases = req.query.includePrereleases === 'true'
+            ? releases.filter((release) => release.prerelease === true).slice(0, 4)
+            : [];
+        releases = releases.filter((release) => stable.includes(release) || prereleases.includes(release));
     }
 
     log.info('{apiPath}: Versions {versions} successfully delivered', {

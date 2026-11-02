@@ -151,6 +151,24 @@ test('LastVersion preserves full release data for other endpoints', async () => 
     assert.deepEqual(releases[1], release);
 });
 
+test('release search includes prereleases only with explicit opt-in', async () => {
+    releases = [{ version: '3.4.0-beta.1', prerelease: true }, { version: '3.3.3', prerelease: false }];
+    for (const value of ['false', '1', 'invalid']) {
+        assert.equal(JSON.parse((await request(`/api/LastVersion?includePrereleases=${value}`)).text).version, '3.3.3');
+    }
+    assert.equal(JSON.parse((await request('/api/LastVersion?includePrereleases=true')).text).version, '3.4.0-beta.1');
+    assert.equal(JSON.parse((await request('/api/Releases?includePrereleases=true')).text).length, 2);
+    releases = [{ version: '3.4.0', prerelease: false }, { version: '3.4.0-beta.1', prerelease: true }];
+    assert.equal(JSON.parse((await request('/api/LastVersion?includePrereleases=true')).text).version, '3.4.0');
+    releases = Array.from({ length: 6 }, (_, index) => ({ version: `3.4.0-beta.${6 - index}`, prerelease: true }));
+    releases.push({ version: '3.3.3', prerelease: false });
+    const listed = JSON.parse((await request('/api/Releases?includePrereleases=true')).text);
+    assert.equal(listed.length, 5);
+    assert.equal(listed.at(-1).version, '3.3.3');
+    releases = [];
+    assert.deepEqual(JSON.parse((await request('/api/LastVersion?includePrereleases=true')).text), {});
+});
+
 test('an empty database produces valid statistics and empty bitmap responses', async () => {
     releases = [];
     const response = await request('/api/Statistics');
