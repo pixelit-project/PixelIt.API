@@ -845,3 +845,18 @@ input::placeholder {
     flex-direction: column;
     gap: 15px;
 }
+
+.telegram-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0;
+}
+.telegram-actions a {
+    color: var(--ink);
+    text-decoration: none;
+    border: 1px solid var(--line);
+    padding: 10px 16px;
+    border-radius: 8px;
+}

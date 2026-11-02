@@ -423,20 +423,34 @@ function showView(view) {
     const statisticsVisible = view === 'statistics';
     getElement('moderation-view').hidden = view !== 'reports';
     getElement('moderators-view').hidden = view !== 'moderators';
+    getElement('notifications-view').hidden = view !== 'notifications';
+    getElement('notifications-tab').setAttribute('aria-pressed', String(view === 'notifications'));
     getElement('moderators-tab').setAttribute('aria-pressed', String(view === 'moderators'));
     getElement('statistics-view').hidden = !statisticsVisible;
     getElement('reports-tab').setAttribute('aria-pressed', String(view === 'reports'));
     getElement('statistics-tab').setAttribute('aria-pressed', String(statisticsVisible));
-    getElement('page-title').textContent = view === 'moderators' ? 'Moderatoren' : statisticsVisible ? 'Statistik' : 'Icon-Meldungen';
-    getElement('page-subtitle').textContent = statisticsVisible
-        ? 'Telemetrie und Geräteverteilung im Überblick.'
-        : 'Meldungen prüfen und Icons verwalten.';
+    const titles = {
+        reports: ['Icon-Meldungen', 'Meldungen prüfen und Icons verwalten.'],
+        statistics: ['Statistik', 'Telemetrie und Geräteverteilung im Überblick.'],
+        moderators: ['Moderatoren', 'Moderatoren hinzufügen und Zugriff verwalten.'],
+        notifications: ['Benachrichtigungen', 'Deine persönlichen Telegram-Einstellungen.'],
+    };
+    getElement('page-title').textContent = titles[view][0];
+    getElement('page-subtitle').textContent = titles[view][1];
 }
 
 // Bind page controls after all handlers have been defined.
 getElement('logout').onclick = logout;
 getElement('statistics-logout').onclick = logout;
-getElement('refresh').onclick = () => (currentView === 'moderators' ? loadModerators() : currentView === 'statistics' ? loadStatistics() : loadReports());
+getElement('refresh').onclick = function refreshCurrentView() {
+    const loaders = {
+        notifications: loadTelegramStatus,
+        moderators: loadModerators,
+        statistics: loadStatistics,
+        reports: loadReports,
+    };
+    loaders[currentView]();
+};
 getElement('reports-tab').onclick = () => showView('reports');
 getElement('statistics-tab').onclick = () => {
     showView('statistics');
@@ -502,9 +516,69 @@ getElement('moderator-form').onsubmit = async (event) => {
     }
 };
 
+async function loadTelegramStatus() {
+    const status = getElement('telegram-status');
+    getElement('telegram-link').hidden = true;
+    getElement('telegram-link').removeAttribute('href');
+    getElement('telegram-connect').hidden = true;
+    getElement('telegram-disconnect').hidden = true;
+    try {
+        const result = await requestAdmin('telegram');
+        if (!result.available) {
+            status.textContent = 'Telegram ist auf diesem Server nicht verfügbar. Bestehende Verbindungen können entfernt werden.';
+        } else if (result.connected) {
+            status.textContent = 'Verbunden · Benachrichtigungen sind aktiviert.';
+        } else if (result.pending) {
+            status.textContent = 'Verknüpfung ausstehend. Starte den Bot über deinen Link oder erstelle einen neuen Link.';
+        } else {
+            status.textContent = 'Nicht verbunden · Benachrichtigungen sind ausgeschaltet.';
+        }
+        getElement('telegram-connect').hidden = !result.available;
+        getElement('telegram-connect').textContent = result.connected || result.pending ? 'Neuen Verknüpfungslink erstellen' : 'Telegram verbinden';
+        getElement('telegram-disconnect').hidden = !result.connected && !result.pending;
+    } catch (error) {
+        status.textContent = error.message;
+    }
+}
+
+getElement('notifications-logout').onclick = logout;
+getElement('notifications-tab').onclick = () => {
+    showView('notifications');
+    loadTelegramStatus();
+};
+getElement('telegram-connect').onclick = async () => {
+    const button = getElement('telegram-connect');
+    button.disabled = true;
+    try {
+        const result = await requestAdmin('telegram/link', {});
+        const link = getElement('telegram-link');
+        link.href = result.url;
+        link.hidden = false;
+        getElement('telegram-disconnect').hidden = false;
+        getElement('telegram-status').textContent = 'Öffne den Bot über den Link und drücke Start. Danach hier aktualisieren.';
+    } catch (error) {
+        showMessage(error.message, true);
+    } finally {
+        button.disabled = false;
+    }
+};
+getElement('telegram-disconnect').onclick = async () => {
+    const button = getElement('telegram-disconnect');
+    button.disabled = true;
+    try {
+        await requestAdmin('telegram/disconnect', {});
+        await loadTelegramStatus();
+    } catch (error) {
+        showMessage(error.message, true);
+    } finally {
+        button.disabled = false;
+    }
+};
+
 async function initializeDashboard() {
     try {
         const identity = await requestAdmin('me');
+        getElement('notifications-tab').hidden = !identity.id;
         getElement('identity').textContent = identity.login + ' · ' + identity.role;
         getElement('moderators-tab').hidden = identity.role !== 'admin' || !identity.id;
         await loadReports();

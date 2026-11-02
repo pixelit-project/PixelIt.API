@@ -3,7 +3,8 @@ const assert = require('node:assert/strict');
 let calls = [],
     exists = true,
     changed = true,
-    failAudit = false;
+    failAudit = false,
+    failCounter = false;
 const connection = {
     beginTransaction: async () => calls.push('begin'),
     commit: async () => calls.push('commit'),
@@ -16,6 +17,7 @@ const connection = {
     execute: async (sql, values) => {
         calls.push([sql, values]);
         if (failAudit && sql.includes('audit')) throw Error('write failed');
+        if (failCounter && sql.includes('pending_count')) throw Error('counter failed');
         return [{ affectedRows: changed ? 1 : 0 }];
     },
 };
@@ -32,11 +34,26 @@ test('report creation locks bitmap and avoids duplicate pending or approved repo
     assert.equal(await repo.report(1, 'reason'), true);
     assert.ok(calls.some((c) => typeof c === 'string' && c.includes('FOR UPDATE')));
     assert.ok(calls.some((c) => Array.isArray(c) && c[0].includes('NOT EXISTS') && c[1][1] === 'reason'));
+    assert.ok(calls.some((call) => Array.isArray(call) && call[0].includes('pending_count + 1')));
     assert.deepEqual(calls.slice(-2), ['commit', 'release']);
+    changed = false;
+    calls = [];
+    assert.equal(await repo.report(1, 'duplicate'), true);
+    assert.ok(!calls.some((call) => Array.isArray(call) && call[0].includes('pending_count + 1')));
+    changed = true;
     exists = false;
     calls = [];
     assert.equal(await repo.report(1, 'reason'), false);
     assert.deepEqual(calls.slice(-2), ['rollback', 'release']);
+});
+test('a failed notification counter update rolls back the new report', async () => {
+    exists = true;
+    changed = true;
+    failCounter = true;
+    calls = [];
+    await assert.rejects(repo.report(1, 'reason'), /counter failed/);
+    assert.deepEqual(calls.slice(-2), ['rollback', 'release']);
+    failCounter = false;
 });
 test('decision and audit commit together, rollback failures and reject repeated decisions', async () => {
     calls = [];
@@ -47,7 +64,8 @@ test('decision and audit commit together, rollback failures and reject repeated 
     calls = [];
     await assert.rejects(repo.decide(1, 'approve'), /write failed/);
     assert.deepEqual(calls.slice(-2), ['rollback', 'release']);
-    failAudit = false;
+    failAudit = false,
+    failCounter = false;
     changed = false;
     calls = [];
     assert.equal(await repo.decide(1, 'approve'), false);

@@ -40,7 +40,8 @@ test('directory writes are parameterized, capped and release the distributed loc
     assert.equal(await repo.setModerator('3', true, 'github:1'), false);
     assert.equal(writes.length, 1);
     assert.equal(await repo.setModerator('2', false, 'github:1'), true);
-    assert.match(writes[1].sql, /DELETE/);
+    assert.match(writes[1].sql, /DELETE FROM pixel_it_telegram/);
+    assert.match(writes[2].sql, /DELETE FROM pixel_it_moderators/);
     assert.deepEqual(writes[1].values, ['2']);
     failWrite = true;
     await assert.rejects(repo.setModerator('2', false, 'github:1'));

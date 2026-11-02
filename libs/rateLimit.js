@@ -140,8 +140,24 @@ const adminActionLimiter = rateLimit({
     },
 });
 
+const telegramWebhookLimiter = rateLimit({
+    windowMs: getPositiveLimit(process.env.API_TELEGRAM_WEBHOOK_LIMIT_WINDOW_MS, 60000),
+    max: getPositiveLimit(process.env.API_TELEGRAM_WEBHOOK_LIMIT_MAX, 120),
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req, response) => tools.getRateLimitKey(req),
+    handler: (req, response, next, options) => {
+        response.status(options.statusCode).send(options.message);
+        log.warn('Telegram webhook RateLimit reached from: {sourceIP}', {
+            sourceIP: tools.getIPFromRequest(req),
+            rateLimit: req.rateLimit,
+        });
+    },
+});
+
 module.exports = {
     apiLimiter,
+    telegramWebhookLimiter,
     telemetryLimiter,
     saveBitmapLimiter,
     reportLimiter,

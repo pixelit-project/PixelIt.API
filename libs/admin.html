@@ -23,7 +23,8 @@
                     <span>▥</span>
                     Statistik
                 </button>
-            <button id="moderators-tab" class="nav-item" aria-pressed="false" hidden>Moderatoren</button>
+            <button id="notifications-tab" class="nav-item" aria-pressed="false" hidden>Benachrichtigungen</button>
+                <button id="moderators-tab" class="nav-item" aria-pressed="false" hidden>Moderatoren</button>
             </nav>
             <div class="sidebar-footer">
                 <span class="avatar">A</span>
@@ -126,6 +127,23 @@
                         PixelIt Gallery
                         <span>Ausblenden ist reversibel. Bereits heruntergeladene Icons bleiben auf den Geräten.</span>
                     </footer>
+                </div>
+                <div id="notifications-view" hidden>
+                    <div class="queue-heading">
+                        <h2>Telegram-Benachrichtigungen</h2>
+                        <button id="notifications-logout" class="quiet">Abmelden ↗</button>
+                    </div>
+                    <article class="telemetry-card">
+                        <p>Erhalte freiwillig Hinweise auf neue Icon-Meldungen. Mehrere Meldungen werden gebündelt. Die Bearbeitung erfolgt weiterhin in der Admin-UI.</p>
+                        <p id="telegram-status" role="status" aria-live="polite">Status wird geladen …</p>
+                        <div class="telegram-actions">
+                            <button id="telegram-connect" class="primary" hidden>Telegram verbinden</button>
+                            <a id="telegram-link" class="secondary" target="_blank" rel="noopener noreferrer" hidden>Bot öffnen und Start drücken</a>
+                            <button id="telegram-disconnect" class="secondary" hidden>Verbindung entfernen</button>
+                        </div>
+                        <p>Der Verknüpfungslink gilt fünf Minuten. Teile ihn nicht. Nach dem Start beim Bot bitte „Aktualisieren“ klicken. Du kannst Benachrichtigungen hier oder mit /stop beim Bot abschalten.</p>
+                        <p>Telegram erhält deine Chat-ID, die Anzahl neuer Meldungen und den Link zur Admin-UI. Meldungstexte werden nicht übertragen.</p>
+                    </article>
                 </div>
                 <div id="moderators-view" hidden>
                     <div class="queue-heading"><h2>Moderatoren verwalten</h2><button id="moderators-logout" class="quiet">Abmelden ↗</button></div>

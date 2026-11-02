@@ -39,10 +39,15 @@ registerBitmapRoutes(app);
 registerTelemetryRoutes(app);
 registerStatisticsRoutes(app);
 registerReleaseRoutes(app);
-registerModerationRoutes(app, moderationRepo, cache);
+const telegramNotifications = registerModerationRoutes(app, moderationRepo, cache);
 
 app.use((error, req, res, next) => {
-    log.error('Request failed: {error}', { error, sourceIP: tools.getIPFromRequest(req) });
+    if (req.path.toLowerCase().replace(/\/+$/, '') === '/api/telegram/webhook') {
+        // Parser errors may contain the incoming body, including one-time linking codes.
+        log.error('TelegramWebhook: request failed; details suppressed.', { sourceIP: tools.getIPFromRequest(req) });
+    } else {
+        log.error('Request failed: {error}', { error, sourceIP: tools.getIPFromRequest(req) });
+    }
     if (res.headersSent) {
         return next(error);
     }
@@ -58,7 +63,10 @@ app.use((error, req, res, next) => {
 
 if (require.main === module) {
     startServer(app, port, migrate)
-        .then(() => log.info('API listening on port {port}', { port }))
+        .then(() => {
+            log.info('API listening on port {port}', { port });
+            return telegramNotifications.start();
+        })
         .catch(() => {
             // Never include connection configuration or credentials in startup logs.
             log.error('API startup failed. Check database availability, migration files and CREATE/SELECT/INSERT permissions.');

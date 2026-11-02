@@ -3,11 +3,19 @@ const fs = require('node:fs');
 const path = require('node:path');
 const log = require('../libs/logger');
 const tools = require('../libs/tools');
+const createTelegramNotifications = require('../libs/telegramNotifications');
 const createGithubAuth = require('../libs/githubAuth');
 const createCredentials = require('../libs/adminCredentials');
-const { reportLimiter, adminLoginLimiter, adminReadLimiter, adminActionLimiter } = require('../libs/rateLimit');
+const { reportLimiter, adminLoginLimiter, adminReadLimiter, adminActionLimiter, telegramWebhookLimiter } = require('../libs/rateLimit');
 
-function registerModerationRoutes(app, repo, cache, statisticsRepo = require('../libs/pixelItRepo'), github = createGithubAuth(process.env)) {
+function registerModerationRoutes(
+    app,
+    repo,
+    cache,
+    statisticsRepo = require('../libs/pixelItRepo'),
+    github = createGithubAuth(process.env),
+    telegram = createTelegramNotifications(repo.telegram)
+) {
     const sessions = new Map();
     const pendingLogins = new Map();
     const sessionLifetime = 30 * 60 * 1000;
@@ -407,12 +415,76 @@ function registerModerationRoutes(app, repo, cache, statisticsRepo = require('..
         }
     }
 
+    function requireTelegramAccount(req, res, next) {
+        if (!req.admin.id) {
+            res.sendStatus(503);
+            return;
+        }
+        next();
+    }
+
+    async function telegramStatus(req, res, next) {
+        try {
+            res.json(await telegram.status(req.admin.id));
+        } catch (error) {
+            handleRequestError(error, req, next, 'TelegramStatus');
+        }
+    }
+
+    async function telegramLink(req, res, next) {
+        if (!telegram.enabled) {
+            res.sendStatus(503);
+            return;
+        }
+        try {
+            const link = await telegram.link(req.admin.id);
+            if (!link) {
+                res.sendStatus(403);
+                return;
+            }
+            log.info('TelegramLink: account {githubId} requested link.', {
+                ...getRequestContext(req), githubId: req.admin.id,
+            });
+            res.json(link);
+        } catch (error) {
+            handleRequestError(error, req, next, 'TelegramLink');
+        }
+    }
+
+    async function telegramDisconnect(req, res, next) {
+        try {
+            await telegram.disconnect(req.admin.id);
+            log.info('TelegramDisconnect: account {githubId} disconnected.', {
+                ...getRequestContext(req), githubId: req.admin.id,
+            });
+            res.sendStatus(204);
+        } catch (error) {
+            handleRequestError(error, req, next, 'TelegramDisconnect');
+        }
+    }
+
+    async function telegramWebhook(req, res, next) {
+        res.set('Cache-Control', 'no-store');
+        if (!telegram.authorized(req.get('X-Telegram-Bot-Api-Secret-Token'))) {
+            log.warn('TelegramWebhook: authentication failed.', getRequestContext(req));
+            res.sendStatus(403);
+            return;
+        }
+        try {
+            await telegram.update(req.body);
+            res.sendStatus(204);
+        } catch (error) {
+            handleRequestError(error, req, next, 'TelegramWebhook');
+        }
+    }
+
     // Public reporting is limited independently from uploads and administrator access.
     app.get(/^\/admin$/, (req, res) => res.redirect('/admin/'));
     app.get('/admin/', checkAdminOrigin, sendAdminPage);
     app.get('/admin/app.js', checkAdminOrigin, requireAdminSession, sendAdminScript);
     app.get('/admin/login.js', checkAdminOrigin, sendLoginScript);
     app.get('/admin/style.css', checkAdminOrigin, sendAdminStyles);
+    app.post('/api/telegram/webhook', telegramWebhookLimiter, telegramWebhook);
     app.post('/api/reports', reportLimiter, createReport);
 
     // Login is limited before origin/session checks, so rejected attempts count too.
@@ -421,6 +493,9 @@ function registerModerationRoutes(app, repo, cache, statisticsRepo = require('..
     app.get('/api/admin/github/callback', adminLoginLimiter, checkAdminOrigin, githubCallback);
     app.use('/api/admin', checkAdminOrigin, requireAdminSession);
     app.get('/api/admin/me', adminReadLimiter, (req, res) => res.json({ role: req.admin.role, login: req.admin.login || 'Administrator', id: req.admin.id || null }));
+    app.get('/api/admin/telegram', adminReadLimiter, telegramStatus);
+    app.post('/api/admin/telegram/link', adminActionLimiter, requireTelegramAccount, telegramLink);
+    app.post('/api/admin/telegram/disconnect', adminActionLimiter, requireTelegramAccount, telegramDisconnect);
     app.get('/api/admin/moderators', adminReadLimiter, requireOwner, getModerators);
     app.post('/api/admin/moderators', adminActionLimiter, requireOwner, updateModerator);
     app.get('/api/admin/icons/:id', adminReadLimiter, getIconPreview);
@@ -428,6 +503,7 @@ function registerModerationRoutes(app, repo, cache, statisticsRepo = require('..
     app.get('/api/admin/statistics', adminReadLimiter, getStatistics);
     app.post('/api/admin/logout', adminActionLimiter, logout);
     app.post('/api/admin/reports/:id/:action', adminActionLimiter, decideReport);
+    return telegram;
 }
 
 module.exports = registerModerationRoutes;

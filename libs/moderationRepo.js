@@ -18,7 +18,7 @@ async function report(iconId, reason) {
             await connection.rollback();
             return false;
         }
-        await connection.execute(
+        const [inserted] = await connection.execute(
             `INSERT INTO pixel_it_reports (icon_id, reason)
              SELECT ?, ?
              WHERE NOT EXISTS (
@@ -27,6 +27,14 @@ async function report(iconId, reason) {
              )`,
             [iconId, reason, iconId]
         );
+        if (inserted.affectedRows > 0) {
+            // A compact durable counter per subscriber, committed with the new report.
+            await connection.execute(`
+                UPDATE pixel_it_telegram
+                SET pending_count = LEAST(pending_count + 1, 1000000)
+                WHERE chat_id IS NOT NULL
+            `);
+        }
         await connection.commit();
         return true;
     } catch (error) {
@@ -132,6 +140,9 @@ async function setModerator(id, enabled, actor) {
             `, [id, actor]);
         } else {
             await connection.execute(`
+                DELETE FROM pixel_it_telegram WHERE github_id = ?
+            `, [id]);
+            await connection.execute(`
                 DELETE FROM pixel_it_moderators WHERE github_id = ?
             `, [id]);
         }
@@ -148,6 +159,7 @@ async function setModerator(id, enabled, actor) {
 }
 
 module.exports = {
+    telegram: require('./telegramRepo')(pool),
     report,
     preview,
     list,

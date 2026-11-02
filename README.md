@@ -45,6 +45,10 @@ services:
       # ADMIN_GITHUB_CLIENT_ID: ${PIXELIT_GITHUB_CLIENT_ID}
       # ADMIN_GITHUB_CLIENT_SECRET: ${PIXELIT_GITHUB_CLIENT_SECRET}
       # ADMIN_GITHUB_OWNER_ID: "123456"
+      # Optional Telegram moderation notifications (see docs/telegram.md):
+      # TELEGRAM_BOT_TOKEN: ${PIXELIT_TELEGRAM_BOT_TOKEN}
+      # TELEGRAM_BOT_USERNAME: YourPixelItBot
+      # TELEGRAM_WEBHOOK_SECRET: ${PIXELIT_TELEGRAM_WEBHOOK_SECRET}
       GITHUB_TOKEN: ${GITHUB_TOKEN}
       API_GLOBAL_LIMIT_WINDOW_MS: 300000
       API_GLOBAL_LIMIT_MAX: 100
@@ -76,6 +80,9 @@ set; the Compose example explicitly enables `TELEMETRY_USER_CHECK`.
 | `MYSQL_DATABASE` | Not set by the API | Name of the existing PixelIt database. |
 | `MYSQL_USER` | Not set by the API | MySQL user with access to the PixelIt tables. |
 | `MYSQL_PASSWORD` | Not set by the API | Password for the MySQL user. |
+| `TELEGRAM_BOT_TOKEN` | Not set (notifications disabled) | Optional bot token for moderation notifications. Requires GitHub admin login and the other Telegram settings; see [setup](docs/telegram.md). |
+| `TELEGRAM_BOT_USERNAME` | Not set | Bot username without `@`. |
+| `TELEGRAM_WEBHOOK_SECRET` | Not set | Random 32–256 character webhook authentication secret (`A-Z`, `a-z`, `0-9`, `_`, `-`). |
 | `GITHUB_TOKEN` | Not set (unauthenticated requests) | Optional token sent with GitHub API requests for PixelIt release information. |
 | `API_GLOBAL_LIMIT_WINDOW_MS` | `300000` (5 minutes) | Rate-limit window in milliseconds for all `/api/` routes. |
 | `API_GLOBAL_LIMIT_MAX` | `100` | Maximum requests per client in the global window. |
@@ -192,11 +199,17 @@ Enable GitHub login with `ADMIN_ORIGIN` (public HTTPS origin, no trailing slash)
 Without GitHub configuration, existing `ADMIN_PASSWORD` login remains supported.
 
 See [moderation setup and API reference](docs/moderation.md) for setup,
-deployment requirements and endpoints.
+deployment requirements and endpoints. Admins and moderators can optionally connect
+Telegram for bundled notifications about new reports. Webhook registration is automatic
+at startup; see [Telegram setup](docs/telegram.md).
 
 ## Changelog
 
 ### Unreleased
+
+- (o0shojo0o) Register the Telegram webhook automatically at startup while preserving queued updates; retry failed registrations with increasing delays without preventing API startup.
+
+- (o0shojo0o) Add optional per-account Telegram notifications for new icon reports, with expiring account links, bundled delivery, unsubscribe controls and automatic removal with moderator access.
 
 - (o0shojo0o) Add GitHub OAuth login with an owner role, UI-managed moderators, membership revocation and individual moderation audit identities; retain password login for installations without GitHub configuration.
 

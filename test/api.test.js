@@ -6,7 +6,8 @@ function stub(moduleName, exports) {
     require.cache[require.resolve(moduleName)] = { id: require.resolve(moduleName), filename: require.resolve(moduleName), loaded: true, exports };
 }
 const noop = () => {};
-stub('../libs/logger', { info: noop, warn: noop, error: noop });
+const loggedErrors = [];
+stub('../libs/logger', { info: noop, warn: noop, error: (message, properties) => loggedErrors.push({ message, properties }) });
 let save = async () => {};
 let saves = 0;
 let lookups = 0;
@@ -178,4 +179,12 @@ test('all async read routes forward failures to the central error handler', asyn
     } finally {
         readFailure = undefined;
     }
+});
+
+test('malformed Telegram webhook JSON never places linking codes in error logs', async () => {
+    loggedErrors.length = 0;
+    const response = await request('/API/TELEGRAM/WEBHOOK/', '{"message":"PRIVATE-LINK-CODE"');
+    assert.equal(response.status, 400);
+    assert.ok(loggedErrors.length > 0);
+    assert.doesNotMatch(JSON.stringify(loggedErrors), /PRIVATE-LINK-CODE/);
 });

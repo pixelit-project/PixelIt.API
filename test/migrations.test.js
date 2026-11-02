@@ -33,7 +33,7 @@ require.cache[mysql] = {
 const migrate = require('../libs/migrations');
 test('migrations create tables, track checksums and skip already applied DDL', async () => {
     await migrate();
-    assert.equal(applied.size, 2);
+    assert.equal(applied.size, 3);
     assert.equal(ended, 1);
     assert.ok(queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS pixel_it_reports')));
     assert.ok(queries.some((sql) => sql.includes('RELEASE_LOCK')));
@@ -50,7 +50,7 @@ test('partial DDL failure is retryable and is never marked complete', async () =
     assert.ok(queries.some((sql) => sql.includes('RELEASE_LOCK')));
     failDDL = false;
     await migrate();
-    assert.equal(applied.size, 2);
+    assert.equal(applied.size, 3);
 });
 test('lock timeout and modified migration fail closed and close connections', async () => {
     const previous = ended;

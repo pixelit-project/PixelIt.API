@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS pixel_it_telegram (
+ github_id VARCHAR(20) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,
+ chat_id VARCHAR(20) CHARACTER SET ascii COLLATE ascii_bin NULL UNIQUE,
+ link_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL UNIQUE,
+ link_expires_at DATETIME NULL,
+ pending_count INT UNSIGNED NOT NULL DEFAULT 0,
+ last_attempt_at DATETIME NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

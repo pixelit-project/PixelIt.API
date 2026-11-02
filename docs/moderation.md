@@ -179,3 +179,10 @@ Without a valid session, `/admin/` serves only the login form. The dashboard HTM
 and `/admin/app.js` are available only with a valid admin session. Login code and
 shared styles remain public; all data endpoints independently enforce admin access.
 After logout or session expiry, the browser returns to the login page.
+
+## Telegram notifications
+
+GitHub-authenticated owners and moderators can opt in to Telegram notifications
+under **Benachrichtigungen**. New icon reports are bundled; duplicate reports do
+not produce additional notifications. See [Telegram setup and delivery limits](telegram.md)
+for bot configuration, webhook registration, privacy, unsubscribe and failure behavior.
