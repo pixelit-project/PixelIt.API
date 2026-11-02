@@ -90,9 +90,26 @@ test('GitHub state binding, role enforcement, membership revocation and attribut
     assert.equal(identificationCalls, 0);
     const ownerLogin = await request(callback, undefined, pending.cookie);
     assert.equal(ownerLogin.status, 302);
+    assert.equal(ownerLogin.headers.get('location'), '/admin/auth-complete');
+    assert.equal(ownerLogin.headers.get('referrer-policy'), 'no-referrer');
+    assert.match(ownerLogin.headers.getSetCookie().find((value) => value.startsWith('__Host-pixelit_admin=')), /HttpOnly; Secure; SameSite=Strict/);
+    // The first cross-site navigation may omit the Strict session cookie.
+    const completion = await request('/admin/auth-complete');
+    assert.equal(completion.status, 200);
+    assert.equal(completion.headers.get('cache-control'), 'no-store');
+    assert.equal(completion.headers.get('referrer-policy'), 'no-referrer');
+    const completionHtml = await completion.text();
+    assert.match(completionHtml, /href="\/admin\/"/);
+    assert.match(completionHtml, /src="\/admin\/auth-complete.js"/);
+    assert.doesNotMatch(completionHtml, /statistics-tab|access_token|code=|state=/);
+    const completionScript = await request('/admin/auth-complete.js');
+    assert.equal(completionScript.status, 200);
+    assert.match(await completionScript.text(), /window\.location\.replace\('\/admin\/'\)/);
+    assert.equal((await request('/admin/app.js')).status, 401);
     assert.equal((await request(callback, undefined, pending.cookie)).status, 403);
     const ownerCookie = sessionCookie(ownerLogin);
     assert.equal((await request('/api/admin/me', undefined, ownerCookie)).status, 200);
+    assert.match(await (await request('/admin/', undefined, ownerCookie)).text(), /statistics-tab/);
     assert.equal((await request('/api/admin/audit/admin', undefined, ownerCookie)).status, 200);
     assert.equal((await request('/api/admin/audit/moderation?before=bad', undefined, ownerCookie)).status, 400);
     assert.equal((await request('/api/admin/moderators', { githubLogin: '../bad', enabled: true }, ownerCookie)).status, 400);

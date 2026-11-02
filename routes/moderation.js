@@ -129,6 +129,15 @@ function registerModerationRoutes(
             .replace('<!-- PASSWORD_HIDDEN -->', github.configured ? 'hidden' : ''));
     }
 
+    function sendAuthCompletePage(req, res) {
+        res.set('Referrer-Policy', 'no-referrer');
+        res.type('html').send(fs.readFileSync(path.join(__dirname, '..', 'libs', 'admin-auth-complete.html'), 'utf8'));
+    }
+
+    function sendAuthCompleteScript(req, res) {
+        res.type('js').send(fs.readFileSync(path.join(__dirname, '..', 'libs', 'admin-auth-complete.js'), 'utf8'));
+    }
+
     function sendAdminScript(req, res) {
         res.type('js').send(fs.readFileSync(path.join(__dirname, '..', 'libs', 'admin-client.js'), 'utf8'));
     }
@@ -363,7 +372,9 @@ function registerModerationRoutes(
             log.info('GitHubLogin: account {githubId} signed in as {role}.', {
                 ...getRequestContext(req), githubId: user.id, role,
             });
-            res.redirect('/admin/');
+            // Finish the cross-site redirect on a public page before a same-site navigation.
+            res.set('Referrer-Policy', 'no-referrer');
+            res.redirect('/admin/auth-complete');
         } catch (error) {
             handleRequestError(error, req, next, 'GitHubLogin');
         }
@@ -531,6 +542,8 @@ function registerModerationRoutes(
     // Public reporting is limited independently from uploads and administrator access.
     app.get(/^\/admin$/, (req, res) => res.redirect('/admin/'));
     app.get('/admin/', checkAdminOrigin, sendAdminPage);
+    app.get('/admin/auth-complete', checkAdminOrigin, sendAuthCompletePage);
+    app.get('/admin/auth-complete.js', checkAdminOrigin, sendAuthCompleteScript);
     app.get('/admin/app.js', checkAdminOrigin, requireAdminSession, sendAdminScript);
     app.get('/admin/login.js', checkAdminOrigin, sendLoginScript);
     app.get('/admin/style.css', checkAdminOrigin, sendAdminStyles);

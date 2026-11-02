@@ -82,6 +82,14 @@ Run one API process, or use sticky routing; multiple replicas need a shared sess
 store. HTTPS termination must be supplied by your reverse proxy. Do not expose the
 container directly to the public internet. State-changing admin requests require
 an exact matching Origin; cookies are Secure, HttpOnly, host-only and SameSite=Strict.
+After GitHub authentication, the callback redirects to a small public completion
+page at `/admin/auth-complete`. It loads on the API's own site before navigating
+with `location.replace` to `/admin/`, so the Strict session cookie is sent outside
+the cross-site OAuth redirect chain (including iOS Safari). A **Continue to dashboard**
+link works without JavaScript. The completion page contains no account data or
+credentials, uses `no-store` and `no-referrer`, and does not grant dashboard access.
+Protected HTML, scripts and data endpoints still require the session. Redirects
+always use fixed local paths, ignoring any user-supplied return URL.
 The public CORS policy is not extended to credentialed cross-origin requests.
 
 Endpoints:

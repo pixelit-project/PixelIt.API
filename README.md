@@ -212,6 +212,10 @@ at startup; see [Telegram setup](docs/telegram.md).
 
 ## Changelog
 
+### Unreleased
+
+- (o0shojo0o) Finish GitHub sign-in through a same-site completion page to avoid returning to the login screen after cross-site redirects with Strict session cookies, including iOS Safari.
+
 ### 2.3.1 (2026-11-02)
 
 - (o0shojo0o) Use English throughout the admin UI, sign-in flow and Telegram notifications, including accessibility labels and date/number formatting.
