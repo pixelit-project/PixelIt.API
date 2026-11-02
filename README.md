@@ -212,6 +212,10 @@ at startup; see [Telegram setup](docs/telegram.md).
 
 ## Changelog
 
+### 2.3.1 (2026-11-02)
+
+- (o0shojo0o) Use English throughout the admin UI, sign-in flow and Telegram notifications, including accessibility labels and date/number formatting.
+
 ### 2.3.0 (2026-11-02)
 
 - (o0shojo0o) Add optional prerelease selection to LastVersion and Releases; stable-only remains the default.
