@@ -8,7 +8,7 @@ const statusLabels = {
 };
 let reports = [];
 let beforeReportId;
-let statusFilter = 'all';
+let statusFilter = 'pending';
 let isLoading = false;
 let isSaving = false;
 let currentView = 'reports';

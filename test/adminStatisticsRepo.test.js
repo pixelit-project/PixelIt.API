@@ -2,12 +2,14 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 let results = [];
 let failure;
+let queries = [];
 const mysqlPath = require.resolve('mysql2/promise');
 require.cache[mysqlPath] = {
     loaded: true,
     exports: {
         createPool: () => ({
-            async query() {
+            async query(sql, parameters) {
+                queries.push({ sql, parameters });
                 if (failure) throw failure;
                 return [results.shift() || []];
             },
@@ -54,6 +56,27 @@ test('an empty telemetry table returns zeros and empty distributions', async () 
     assert.deepEqual(stats.hardware, []);
     assert.deepEqual(stats.matrices, []);
 });
+test('both statistics endpoints validate matrix names before grouping', async () => {
+    queries = [];
+    results = [[], [], [], [], [{ sensors: [] }]];
+    await repo.getStatistics();
+    await repo.getAdminStatistics();
+    const matrixQueries = queries.filter(({ sql }) => sql.includes("JSON_EXTRACT(matrix, '$.name')"));
+    assert.equal(matrixQueries.length, 2);
+    for (const { sql, parameters } of matrixQueries) {
+        assert.deepEqual(parameters, [
+            'Colum major', 'Column major', 'Row major',
+            'Tiled 4x 8x8 CJMCU (Column major)', 'MicroMatrix',
+            'Tiled 4x 8x8 CJMCU (Row major)',
+        ]);
+        assert.match(sql, /CAST\(JSON_UNQUOTE[\s\S]*AS BINARY\)/);
+        assert.match(sql, /IN \(\?, \?, \?, \?, \?, \?\)/);
+        assert.match(sql, /ELSE 'Custom'[\s\S]*END[\s\S]*COUNT\(\*\)/);
+        assert.match(sql, /GROUP BY (1|label)/);
+        assert.doesNotMatch(sql, /JSON_EXTRACT\(sensors/);
+    }
+});
+
 test('database failures are propagated instead of showing false zeros', async () => {
     failure = new Error('database unavailable');
     await assert.rejects(repo.getAdminStatistics(), (error) => error === failure);

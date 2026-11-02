@@ -43,6 +43,10 @@ sources rather than assuming their behavior.
   contracts or validation. Distinguish mocked tests from real integration checks.
 - Keep README environment variables and deployment guidance aligned with behavior.
   Documentation-only edits do not require service tests. Report checks and gaps.
+- Maintain the changelog in `README.md` for every user-visible behavior change,
+  feature or fix. Add unreleased changes under `Unreleased` using the existing
+  author format; assign a version and release date only when preparing a release.
+  Describe the final behavior and keep existing release history intact.
 
 ## Code structure and style
 

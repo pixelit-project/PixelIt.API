@@ -15,6 +15,25 @@ const connection = mysql.createPool({
     queueLimit: 0,
 });
 
+// Matrix names emitted by firmware GetTelemetry(), plus the corrected spelling.
+// Extend this list when firmware introduces another supported configuration.
+const validMatrixNames = [
+    'Colum major',
+    'Column major',
+    'Row major',
+    'Tiled 4x 8x8 CJMCU (Column major)',
+    'MicroMatrix',
+    'Tiled 4x 8x8 CJMCU (Row major)',
+];
+const matrixLabelSql = `
+    CASE
+        WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(matrix, '$.name')) AS BINARY)
+            IN (${validMatrixNames.map(() => '?').join(', ')})
+        THEN JSON_UNQUOTE(JSON_EXTRACT(matrix, '$.name'))
+        ELSE 'Custom'
+    END
+`;
+
 async function getBMPByID(id) {
     let result;
     try {
@@ -221,7 +240,13 @@ async function getStatistics() {
     try {
         result.buildStats = (await connection.query(`SELECT DISTINCT(IF(build_section = '','No_Data',build_section)) AS build, COUNT(*) AS count FROM pixel_it_telemetry where last_change >= CURRENT_DATE - INTERVAL 30 DAY GROUP BY build_section ORDER BY build`))[0];
         result.versionStats = (await connection.query(`SELECT DISTINCT(version) AS version, COUNT(*) AS count FROM pixel_it_telemetry where last_change >= CURRENT_DATE - INTERVAL 30 DAY GROUP BY version ORDER BY VERSION desc`))[0];
-        result.matrixStats = (await connection.query(`SELECT DISTINCT(JSON_EXTRACT(matrix, '$.name')) AS matrix, COUNT(*) AS count FROM pixel_it_telemetry where last_change >= CURRENT_DATE - INTERVAL 30 DAY GROUP BY JSON_EXTRACT(matrix, '$.name') ORDER BY matrix`))[0];
+        result.matrixStats = (await connection.query(`
+            SELECT ${matrixLabelSql} AS matrix, COUNT(*) AS count
+            FROM pixel_it_telemetry
+            WHERE last_change >= CURRENT_DATE - INTERVAL 30 DAY
+            GROUP BY 1
+            ORDER BY matrix
+        `, validMatrixNames))[0];
 
 
         result.countryStats = (await connection.query(`SELECT DISTINCT(JSON_EXTRACT(geoip, '$.country')) AS country, COUNT(*) AS count FROM pixel_it_telemetry where last_change >= CURRENT_DATE - INTERVAL 30 DAY GROUP BY JSON_EXTRACT(geoip, '$.country') ORDER BY COUNT DESC`))[0];
@@ -274,14 +299,14 @@ async function getAdminStatistics() {
         LIMIT 8
     `);
     const [matrices] = await connection.query(`
-        SELECT COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(matrix, '$.name')), ''), 'Unbekannt') AS label,
+        SELECT ${matrixLabelSql} AS label,
                COUNT(*) AS count
         FROM pixel_it_telemetry
         WHERE last_change >= CURRENT_TIMESTAMP - INTERVAL 30 DAY
         GROUP BY label
         ORDER BY count DESC, label ASC
         LIMIT 8
-    `);
+    `, validMatrixNames);
     const totals = summary[0] || {};
     return {
         total: Number(totals.total || 0),

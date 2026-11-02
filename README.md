@@ -192,6 +192,11 @@ deployment requirements and endpoints.
 
 ## Changelog
 
+### Unreleased
+
+- (o0shojo0o) Show open reports by default in the admin UI.
+- (o0shojo0o) Validate matrix names against supported firmware names in admin and public statistics; group other names as `Custom` without changing stored telemetry.
+
 ### 2.0.1 (2026-11-01)
 
 - (o0shojo0o) Serve a minimal login page before authentication; protect dashboard HTML and JavaScript with the admin session.

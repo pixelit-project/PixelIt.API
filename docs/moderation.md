@@ -122,7 +122,13 @@ The overview shows distinct stored device records last updated within 24 hours,
 7 days and 30 days, plus all stored telemetry records. These overlapping windows
 are based on the last report per device, not live connections or a historical
 activity series. Firmware, hardware type and matrix distributions cover the last
-30 days and return at most eight groups each. Percentages use all devices in that
+30 days and return at most eight groups each. Matrix names are checked against
+firmware's supported names (`Colum major`, `Column major`, `Row major`,
+`MicroMatrix`, `Tiled 4x 8x8 CJMCU (Column major)` and
+`Tiled 4x 8x8 CJMCU (Row major)`). Other names, including misplaced sensor
+names, are grouped as `Custom` before aggregation in both public and admin
+statistics. Matching is case-sensitive; stored telemetry is unchanged. Extend
+the list in `libs/pixelItRepo.js` when adding supported firmware matrix names. Percentages use all devices in that
 30-day window, so displayed groups may add up to less than 100 percent. No device
 UUIDs, IP addresses or geographic positions are returned. Data is loaded when the
 statistics tab opens or the refresh button is used; there is no background polling.
