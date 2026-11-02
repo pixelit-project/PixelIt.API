@@ -51,8 +51,8 @@ test('Telegram links are hashed, single-use and private-chat only; stop removes 
     const confirmation = await service.update({ message });
     assert.equal(confirmation.method, 'sendMessage');
     assert.equal(confirmation.chat_id, '456');
-    assert.match(confirmation.text, /Telegram ist verbunden/);
-    assert.match(confirmation.text, /neue Icon-Meldungen/);
+    assert.match(confirmation.text, /Telegram is connected/);
+    assert.match(confirmation.text, /new icon reports/);
     assert.match(confirmation.text, /\/stop/);
     assert.equal(await service.update({ message }), undefined);
     assert.equal(connections, 1);
@@ -88,7 +88,7 @@ test('digests are bounded, claimed once, recheck revocation and never retry ambi
     await Promise.all([service.flush(), service.flush()]);
     await service.flush();
     assert.equal(sent.length, 2);
-    assert.match(sent[0].text, /3 neue Icon-Meldung/);
+    assert.match(sent[0].text, /3 new icon report/);
     assert.match(sent[0].text, /https:\/\/example.test\/admin\//);
     assert.equal(sent[0].parse_mode, undefined);
     let claims = 0;

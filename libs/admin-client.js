@@ -2,9 +2,9 @@
 
 const getElement = (id) => document.getElementById(id);
 const statusLabels = {
-    pending: 'Offen',
-    approved: 'Ausgeblendet',
-    rejected: 'Abgelehnt',
+    pending: 'Pending',
+    approved: 'Hidden',
+    rejected: 'Rejected',
 };
 let reports = [];
 let beforeReportId;
@@ -44,17 +44,17 @@ async function requestAdmin(path, body) {
             showLogin();
         }
         const texts = {
-            400: 'Ungültige Eingabe. Bitte prüfe den GitHub-Benutzernamen oder die Anfrage.',
-            404: 'Der GitHub-Account wurde nicht gefunden.',
-            401: 'Bitte melde dich an. Deine Sitzung ist möglicherweise abgelaufen.',
-            403: 'Keine Berechtigung für diese Aktion oder unzulässige Herkunft der Anfrage.',
+            400: 'Invalid input. Please check the GitHub username or request.',
+            404: 'GitHub account not found.',
+            401: 'Please sign in. Your session may have expired.',
+            403: 'You do not have permission for this action, or the request origin is not allowed.',
             409: path.startsWith('moderators')
-                ? 'Es können maximal 100 Moderatoren freigeschaltet werden.'
-                : 'Diese Meldung wurde bereits bearbeitet. Bitte aktualisiere die Ansicht.',
-            429: 'Zu viele Anfragen. Bitte versuche es später erneut.',
-            503: 'Der Dienst ist vorübergehend nicht verfügbar. Bitte versuche es später erneut.',
+                ? 'You can add up to 100 moderators.'
+                : 'This report has already been processed. Please refresh the page.',
+            429: 'Too many requests. Please try again later.',
+            503: 'The service is temporarily unavailable. Please try again later.',
         };
-        throw new Error(texts[response.status] || 'Die Anfrage ist fehlgeschlagen. Bitte versuche es erneut.');
+        throw new Error(texts[response.status] || 'The request failed. Please try again.');
     }
     return response.status === 204 ? null : response.json();
 }
@@ -77,7 +77,7 @@ function formatDate(value) {
     const parsedDate = new Date(value);
     return Number.isNaN(parsedDate.valueOf())
         ? String(value)
-        : new Intl.DateTimeFormat('de-DE', {
+        : new Intl.DateTimeFormat('en-GB', {
               day: '2-digit',
               month: 'short',
               year: 'numeric',
@@ -96,7 +96,7 @@ function createIconCanvas(icon) {
         icon.sizeY > 256 ||
         typeof icon.pixels !== 'string'
     ) {
-        throw new Error('Vorschau nicht verfügbar.');
+        throw new Error('Preview unavailable.');
     }
     const pixels = JSON.parse(icon.pixels.slice(0, icon.pixels.indexOf(']') + 1));
     if (
@@ -104,13 +104,13 @@ function createIconCanvas(icon) {
         pixels.length !== icon.sizeX * icon.sizeY ||
         pixels.some((value) => !Number.isInteger(value) || value < 0 || value > 65535)
     ) {
-        throw new Error('Vorschau nicht verfügbar.');
+        throw new Error('Preview unavailable.');
     }
     const canvasElement = document.createElement('canvas');
     canvasElement.width = icon.sizeX;
     canvasElement.height = icon.sizeY;
     canvasElement.setAttribute('role', 'img');
-    canvasElement.setAttribute('aria-label', 'Icon-Vorschau, erstes Bild');
+    canvasElement.setAttribute('aria-label', 'Icon preview, first frame');
     const context = canvasElement.getContext('2d');
     const image = context.createImageData(canvasElement.width, canvasElement.height);
     pixels.forEach((value, i) => {
@@ -126,21 +126,21 @@ function createIconCanvas(icon) {
 function confirmAction(report, action) {
     const options = {
         approve: [
-            'Icon ausblenden?',
-            '„' +
+            'Hide this icon?',
+            '“' +
                 (report.name || 'Icon #' + report.icon_id) +
-                '“ wird aus der öffentlichen Gallery entfernt. Du kannst es später wiederherstellen.',
-            'Ausblenden',
+                '” will be hidden from the public gallery. You can restore it later.',
+            'Hide',
         ],
         reject: [
-            'Meldung ablehnen?',
-            'Das Icon bleibt in der Gallery sichtbar. Die Meldung wird als abgelehnt abgeschlossen.',
-            'Meldung ablehnen',
+            'Reject this report?',
+            'The icon will remain visible in the gallery. The report will be marked as rejected.',
+            'Reject report',
         ],
         restore: [
-            'Icon wiederherstellen?',
-            'Das Icon wird wieder in der öffentlichen Gallery sichtbar.',
-            'Wiederherstellen',
+            'Restore this icon?',
+            'The icon will be visible in the public gallery again.',
+            'Restore',
         ],
     };
     const [title, text, label] = options[action];
@@ -169,10 +169,10 @@ async function submitDecision(report, action) {
         report.processed_at = new Date().toISOString();
         showMessage(
             action === 'approve'
-                ? 'Icon ausgeblendet. Du kannst es im Filter „Ausgeblendet“ wiederherstellen.'
+                ? 'Icon hidden. You can restore it using the Hidden filter.'
                 : action === 'restore'
-                ? 'Icon wiederhergestellt.'
-                : 'Meldung abgelehnt.'
+                ? 'Icon restored.'
+                : 'Report rejected.'
         );
     } catch (error) {
         showMessage(error.message, true);
@@ -184,7 +184,7 @@ async function submitDecision(report, action) {
 
 function createPreviewButton(icon, report) {
     const button = createElement('button', 'preview-open');
-    button.setAttribute('aria-label', 'Große Vorschau für ' + (report.name || report.icon_id));
+    button.setAttribute('aria-label', 'Large preview for ' + (report.name || report.icon_id));
     button.append(createIconCanvas(icon));
     button.onclick = () => {
         getElement('preview-title').textContent = (report.name || 'Icon') + ' · #' + report.icon_id;
@@ -201,14 +201,14 @@ function createReportCard(report) {
         try {
             preview.append(createPreviewButton(iconPreviews.get(report.icon_id), report));
         } catch {
-            preview.textContent = 'Keine Vorschau';
+            preview.textContent = 'No preview';
         }
     } else {
-        const button = createElement('button', '', '▦ Vorschau');
-        button.setAttribute('aria-label', 'Vorschau für ' + (report.name || report.icon_id));
+        const button = createElement('button', '', '▦ Preview');
+        button.setAttribute('aria-label', 'Preview for ' + (report.name || report.icon_id));
         button.onclick = async () => {
             button.disabled = true;
-            button.textContent = 'Lädt …';
+            button.textContent = 'Loading…';
             try {
                 const icon = await requestAdmin('icons/' + report.icon_id);
                 const drawing = createPreviewButton(icon, report);
@@ -219,7 +219,7 @@ function createReportCard(report) {
                 preview.replaceChildren(drawing);
             } catch (error) {
                 button.disabled = false;
-                button.textContent = 'Erneut laden';
+                button.textContent = 'Try again';
                 showMessage(error.message, true);
             }
         };
@@ -228,24 +228,24 @@ function createReportCard(report) {
     article.append(preview);
     const body = createElement('div', 'report-body');
     body.append(
-        createElement('h3', '', report.name || 'Icon nicht vorhanden'),
-        createElement('p', 'report-id', 'ICON #' + report.icon_id + '  /  MELDUNG #' + report.id),
+        createElement('h3', '', report.name || 'Icon unavailable'),
+        createElement('p', 'report-id', 'ICON #' + report.icon_id + '  /  REPORT #' + report.id),
         createElement('p', 'reason', report.reason)
     );
     const bottom = createElement('div', 'report-bottom');
-    bottom.append(createElement('span', '', 'Eingegangen · ' + formatDate(report.created_at)));
+    bottom.append(createElement('span', '', 'Received · ' + formatDate(report.created_at)));
     body.append(bottom);
     const details = createElement('details', 'report-details');
-    details.append(createElement('summary', '', 'Details anzeigen'));
+    details.append(createElement('summary', '', 'Show details'));
     details.append(
         createElement(
             'p',
             '',
-            'Bearbeitet: ' +
+            'Processed: ' +
                 formatDate(report.processed_at) +
-                '\nIcon-ID: ' +
+                '\nIcon ID: ' +
                 report.icon_id +
-                ' · Meldungs-ID: ' +
+                ' · Report ID: ' +
                 report.id
         )
     );
@@ -262,11 +262,11 @@ function createReportCard(report) {
     const available =
         report.status === 'pending'
             ? [
-                  ['reject', 'Ablehnen', 'secondary'],
-                  ['approve', 'Ausblenden', 'danger'],
+                  ['reject', 'Reject', 'secondary'],
+                  ['approve', 'Hide', 'danger'],
               ]
             : report.status === 'approved'
-            ? [['restore', 'Wiederherstellen', 'secondary']]
+            ? [['restore', 'Restore', 'secondary']]
             : [];
     for (const [action, label, style] of available) {
         const button = createElement('button', style, label);
@@ -284,14 +284,14 @@ function renderReports() {
         getElement('count-' + status).textContent =
             status === 'all' ? reports.length : reports.filter((report) => report.status === status).length;
     }
-    const search = getElement('search').value.trim().toLocaleLowerCase('de');
+    const search = getElement('search').value.trim().toLocaleLowerCase('en');
     const selected = reports
         .filter(
             (report) =>
                 (statusFilter === 'all' || report.status === statusFilter) &&
                 [report.name, report.icon_id, report.reason, report.id].some((value) =>
                     String(value ?? '')
-                        .toLocaleLowerCase('de')
+                        .toLocaleLowerCase('en')
                         .includes(search)
                 )
         )
@@ -300,7 +300,7 @@ function renderReports() {
         );
     getElement('reports').replaceChildren(...selected.map(createReportCard));
     getElement('empty').hidden = selected.length > 0;
-    getElement('result-count').textContent = selected.length + ' ' + (selected.length === 1 ? 'Meldung' : 'Meldungen');
+    getElement('result-count').textContent = selected.length + ' ' + (selected.length === 1 ? 'Report' : 'Reports');
     for (const button of document.querySelectorAll('[data-filter]')) {
         button.setAttribute('aria-pressed', String(button.dataset.filter === statusFilter));
     }
@@ -341,7 +341,7 @@ async function logout() {
     try {
         await requestAdmin('logout', {});
         showLogin();
-        showMessage('Du bist abgemeldet.');
+        showMessage('You have signed out.');
     } catch (error) {
         showMessage(error.message, true);
     }
@@ -353,17 +353,17 @@ function clearStatistics() {
     for (const group of ['versions', 'hardware', 'matrices']) {
         getElement('telemetry-' + group).replaceChildren();
     }
-    getElement('statistics-updated').textContent = 'Noch nicht geladen';
+    getElement('statistics-updated').textContent = 'Not loaded yet';
 }
 
 function renderDistribution(id, entries, total) {
     const container = getElement(id);
     container.replaceChildren();
     if (!entries.length) {
-        container.append(createElement('p', 'distribution-empty', 'Keine Telemetriedaten in diesem Zeitraum.'));
+        container.append(createElement('p', 'distribution-empty', 'No telemetry data for this period.'));
         return;
     }
-    const formatter = new Intl.NumberFormat('de-DE');
+    const formatter = new Intl.NumberFormat('en-GB');
     for (const entry of entries) {
         const row = createElement('div', 'distribution-row');
         const heading = createElement('div', 'distribution-heading');
@@ -377,7 +377,7 @@ function renderDistribution(id, entries, total) {
         meter.min = 0;
         meter.max = 100;
         meter.value = percentage;
-        meter.setAttribute('aria-label', entry.label + ': ' + formatter.format(count) + ' Geräte');
+        meter.setAttribute('aria-label', entry.label + ': ' + formatter.format(count) + ' devices');
         row.append(heading, meter);
         container.append(row);
     }
@@ -390,7 +390,7 @@ async function loadStatistics() {
     statisticsLoading = true;
     const generation = sessionGeneration;
     clearStatistics();
-    getElement('statistics-message').textContent = 'Statistik wird geladen …';
+    getElement('statistics-message').textContent = 'Loading statistics…';
     getElement('statistics-message').hidden = false;
     getElement('statistics-view').setAttribute('aria-busy', 'true');
     getElement('refresh').disabled = true;
@@ -399,7 +399,7 @@ async function loadStatistics() {
         if (generation !== sessionGeneration) {
             return;
         }
-        const formatter = new Intl.NumberFormat('de-DE');
+        const formatter = new Intl.NumberFormat('en-GB');
         getElement('telemetry-24h').textContent = formatter.format(statistics.active24h);
         getElement('telemetry-7d').textContent = formatter.format(statistics.active7d);
         getElement('telemetry-30d').textContent = formatter.format(statistics.active30d);
@@ -408,9 +408,9 @@ async function loadStatistics() {
         renderDistribution('telemetry-hardware', statistics.hardware, statistics.active30d);
         renderDistribution('telemetry-matrices', statistics.matrices, statistics.active30d);
         getElement('statistics-updated').textContent =
-            'Stand: ' +
+            'Updated: ' +
             formatDate(statistics.generatedAt) +
-            ' · Letzte Gerätemeldung: ' +
+            ' · Last device report: ' +
             formatDate(statistics.lastSeen);
         getElement('statistics-message').hidden = true;
     } catch (error) {
@@ -437,12 +437,12 @@ function showView(view) {
     getElement('reports-tab').setAttribute('aria-pressed', String(view === 'reports'));
     getElement('statistics-tab').setAttribute('aria-pressed', String(statisticsVisible));
     const titles = {
-        reports: ['Icon-Meldungen', 'Meldungen prüfen und Icons verwalten.'],
-        statistics: ['Statistik', 'Telemetrie und Geräteverteilung im Überblick.'],
-        moderators: ['Moderatoren', 'Moderatoren hinzufügen und Zugriff verwalten.'],
-        'moderation-audit': ['Moderationsprotokoll', 'Wer hat welche Meldung bearbeitet?'],
-        'admin-audit': ['Admin-Protokoll', 'Änderungen an Moderator-Berechtigungen nachvollziehen.'],
-        notifications: ['Benachrichtigungen', 'Deine persönlichen Telegram-Einstellungen.'],
+        reports: ['Icon reports', 'Review reports and manage icons.'],
+        statistics: ['Statistics', 'An overview of device activity and distributions.'],
+        moderators: ['Moderators', 'Add moderators and manage access.'],
+        'moderation-audit': ['Moderation log', 'See who reviewed each report.'],
+        'admin-audit': ['Admin log', 'Track changes to moderator access.'],
+        notifications: ['Notifications', 'Your personal Telegram settings.'],
     };
     getElement('breadcrumb').textContent = titles[view][0];
     getElement('page-title').textContent = titles[view][0];
@@ -486,11 +486,11 @@ async function loadModerators() {
             const label = member.github_login ? '@' + member.github_login : 'GitHub-ID ' + member.github_id;
             const avatar = createElement('span', 'avatar', (member.github_login || '?').slice(0, 1).toUpperCase());
             const details = createElement('div', 'member-details');
-            details.append(createElement('strong', '', label), createElement('small', '', 'Moderator · Gallery-Verwaltung'));
+            details.append(createElement('strong', '', label), createElement('small', '', 'Moderator · Gallery management'));
             row.append(avatar, details);
-            const button = createElement('button', 'secondary', 'Entfernen');
+            const button = createElement('button', 'secondary', 'Remove');
             button.onclick = async () => {
-                if (!window.confirm('Moderator ' + label + ' entfernen und Zugriff widerrufen?')) {
+                if (!window.confirm('Remove moderator ' + label + ' and revoke their access?')) {
                     return;
                 }
                 button.disabled = true;
@@ -506,7 +506,7 @@ async function loadModerators() {
             return row;
         });
         getElement('moderator-list').replaceChildren(...rows);
-        showMessage(members.length ? '' : 'Noch keine Moderatoren freigeschaltet.');
+        showMessage(members.length ? '' : 'No moderators have been added yet.');
     } catch (error) {
         showMessage(error.message, true);
     }
@@ -540,11 +540,11 @@ async function loadAudit(reset = true) {
     const kind = currentView === 'admin-audit' ? 'admin' : 'moderation';
     const generation = ++auditRequestGeneration;
     const cursor = !reset && auditKind === kind ? auditCursor : null;
-    getElement('audit-heading').textContent = kind === 'admin' ? 'Admin-Protokoll' : 'Moderationsprotokoll';
+    getElement('audit-heading').textContent = kind === 'admin' ? 'Admin log' : 'Moderation log';
     getElement('audit-description').textContent = kind === 'admin'
-        ? 'Hinzufügen und Entfernen von Moderatoren. Pro Seite maximal 50 Einträge.'
-        : 'Ausblenden, Ablehnen und Wiederherstellen durch Moderatoren und Admins. Pro Seite maximal 50 Einträge.';
-    getElement('audit-list').replaceChildren(createElement('p', '', 'Protokoll wird geladen …'));
+        ? 'Moderator additions and removals. Up to 50 entries per page.'
+        : 'Icons hidden or restored and reports rejected by moderators and admins. Up to 50 entries per page.';
+    getElement('audit-list').replaceChildren(createElement('p', '', 'Loading audit log…'));
     getElement('audit-more').hidden = true;
     try {
         const entries = await requestAdmin('audit/' + kind + (cursor ? '?before=' + cursor : ''));
@@ -554,28 +554,28 @@ async function loadAudit(reset = true) {
         auditKind = kind;
         auditCursor = entries.at(-1)?.id;
         const labels = {
-            approve: 'Icon ausgeblendet',
-            reject: 'Meldung abgelehnt',
-            restore: 'Icon wiederhergestellt',
-            moderator_added: 'Moderator hinzugefügt',
-            moderator_removed: 'Moderator entfernt',
+            approve: 'Icon hidden',
+            reject: 'Report rejected',
+            restore: 'Icon restored',
+            moderator_added: 'Moderator added',
+            moderator_removed: 'Moderator removed',
         };
         const rows = entries.map((entry) => {
             const row = createElement('article', 'audit-entry');
             const actor = entry.actor_login ? '@' + entry.actor_login : entry.actor;
             const target = kind === 'admin'
                 ? entry.target_login ? '@' + entry.target_login : 'GitHub-ID ' + entry.target_id
-                : 'Meldung #' + entry.report_id + (entry.icon_id ? ' · Icon #' + entry.icon_id : '');
+                : 'Report #' + entry.report_id + (entry.icon_id ? ' · Icon #' + entry.icon_id : '');
             row.append(
                 createElement('h3', '', labels[entry.action] || entry.action),
                 createElement('p', '', actor + ' · ' + target),
-                createElement('small', '', formatDate(entry.created_at) + ' · Ereignis #' + entry.id)
+                createElement('small', '', formatDate(entry.created_at) + ' · Event #' + entry.id)
             );
             return row;
         });
         getElement('audit-list').replaceChildren(...rows);
         if (!entries.length) {
-            getElement('audit-list').append(createElement('p', '', 'Keine weiteren protokollierten Aktionen.'));
+            getElement('audit-list').append(createElement('p', '', 'No more recorded actions.'));
         }
         getElement('audit-more').hidden = entries.length < 50;
         showMessage('');
@@ -605,16 +605,16 @@ async function loadTelegramStatus() {
         const result = await requestAdmin('telegram');
         status.dataset.state = result.connected ? 'connected' : result.pending ? 'pending' : 'disconnected';
         if (!result.available) {
-            status.textContent = 'Telegram ist auf diesem Server nicht verfügbar. Bestehende Verbindungen können entfernt werden.';
+            status.textContent = 'Telegram is unavailable on this server. You can still remove existing connections.';
         } else if (result.connected) {
-            status.textContent = 'Verbunden · Benachrichtigungen sind aktiviert.';
+            status.textContent = 'Connected · Notifications are enabled.';
         } else if (result.pending) {
-            status.textContent = 'Verknüpfung ausstehend. Starte den Bot über deinen Link oder erstelle einen neuen Link.';
+            status.textContent = 'Connection pending. Start the bot using your link or create a new link.';
         } else {
-            status.textContent = 'Nicht verbunden · Benachrichtigungen sind ausgeschaltet.';
+            status.textContent = 'Not connected · Notifications are disabled.';
         }
         getElement('telegram-connect').hidden = !result.available;
-        getElement('telegram-connect').textContent = result.connected || result.pending ? 'Neuen Verknüpfungslink erstellen' : 'Telegram verbinden';
+        getElement('telegram-connect').textContent = result.connected || result.pending ? 'Create a new connection link' : 'Connect Telegram';
         getElement('telegram-disconnect').hidden = !result.connected && !result.pending;
     } catch (error) {
         status.textContent = error.message;
@@ -635,7 +635,7 @@ getElement('telegram-connect').onclick = async () => {
         link.href = result.url;
         link.hidden = false;
         getElement('telegram-disconnect').hidden = false;
-        getElement('telegram-status').textContent = 'Öffne den Bot über den Link und drücke Start. Danach hier aktualisieren.';
+        getElement('telegram-status').textContent = 'Open the bot using the link and press Start. Then refresh this page.';
     } catch (error) {
         showMessage(error.message, true);
     } finally {

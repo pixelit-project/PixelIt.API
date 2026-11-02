@@ -18,7 +18,7 @@ require('../routes/moderation')(app, { isModerator: async () => true, rememberId
     disconnect: async (id) => { calls.push(['disconnect', id]); },
     update: async (body) => {
         calls.push(['update', body]);
-        return body.update_id === 2 ? { method: 'sendMessage', chat_id: '456', text: 'Telegram ist verbunden.' } : undefined;
+        return body.update_id === 2 ? { method: 'sendMessage', chat_id: '456', text: 'Telegram is connected.' } : undefined;
     },
 });
 const server = app.listen(0, '127.0.0.1');
@@ -42,7 +42,7 @@ test('Telegram settings require a session, bind to its identity and enforce Orig
     assert.deepEqual(calls.pop(), ['update', { update_id: 1 }]);
     const confirmation = await request('/api/telegram/webhook', { update_id: 2 }, { 'X-Telegram-Bot-Api-Secret-Token': 'webhook-secret' });
     assert.equal(confirmation.status, 200);
-    assert.deepEqual(await confirmation.json(), { method: 'sendMessage', chat_id: '456', text: 'Telegram ist verbunden.' });
+    assert.deepEqual(await confirmation.json(), { method: 'sendMessage', chat_id: '456', text: 'Telegram is connected.' });
     calls.pop();
     const start = await request('/api/admin/github/login');
     const state = new URL(start.headers.get('location')).searchParams.get('state');

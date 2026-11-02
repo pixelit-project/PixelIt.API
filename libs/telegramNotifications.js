@@ -65,7 +65,7 @@ function createTelegramNotifications(repo, env = process.env, transport = axios)
                 return {
                     method: 'sendMessage',
                     chat_id: chatId,
-                    text: 'Telegram ist verbunden. Du erhältst ab jetzt Benachrichtigungen über neue Icon-Meldungen. Mit /stop kannst du sie jederzeit abschalten.',
+                    text: 'Telegram is connected. You will now receive notifications about new icon reports. Send /stop to turn them off at any time.',
                 };
             }
         } catch (error) {
@@ -93,7 +93,7 @@ function createTelegramNotifications(repo, env = process.env, transport = axios)
                 try {
                     const response = await transport.post(`https://api.telegram.org/bot${token}/sendMessage`, {
                         chat_id: recipient.chat_id,
-                        text: `${count} neue Icon-Meldung(en) seit der letzten Benachrichtigung.\nIn der Admin-UI prüfen: ${origin}/admin/`,
+                        text: `${count} new icon report(s) since the last notification.\nReview in the admin UI: ${origin}/admin/`,
                         link_preview_options: { is_disabled: true },
                     }, { timeout: 5000, maxContentLength: 16384, maxBodyLength: 16384, maxRedirects: 0 });
                     if (response.data?.ok !== true) {

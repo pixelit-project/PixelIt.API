@@ -81,7 +81,7 @@ function sessionCookie(response) {
 }
 test('GitHub state binding, role enforcement, membership revocation and attributed moderation', async () => {
     const page = await (await request('/admin/')).text();
-    assert.match(page, /Mit GitHub anmelden/);
+    assert.match(page, /Sign in with GitHub/);
     assert.match(page, /id="login" hidden/);
     assert.equal((await request('/api/admin/login', { password: 'anything' })).status, 404);
     const pending = await startLogin();

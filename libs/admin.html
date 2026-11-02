@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width" />
@@ -17,34 +17,34 @@
             <nav class="admin-navigation" aria-label="Administration">
                 <button id="reports-tab" class="nav-item" aria-pressed="true" disabled>
                     <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h5M8 17h3"/></svg>
-                    <span>Icon-Meldungen</span>
+                    <span>Icon reports</span>
                 </button>
                 <button id="statistics-tab" class="nav-item" aria-pressed="false" disabled>
                     <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M7 16v-5m5 5V5m5 11V8"/></svg>
-                    <span>Statistik</span>
+                    <span>Statistics</span>
                 </button>
-            <button id="moderation-audit-tab" class="nav-item" aria-pressed="false">
+                <button id="moderation-audit-tab" class="nav-item" aria-pressed="false">
                     <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l1 2h3v15H5V6h3zM9 11h6M9 15h6"/></svg>
-                    <span>Moderationsprotokoll</span>
+                    <span>Moderation log</span>
                 </button>
                 <button id="admin-audit-tab" class="nav-item" aria-pressed="false" hidden>
                     <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6zM9 12l2 2 4-4"/></svg>
-                    <span>Admin-Protokoll</span>
+                    <span>Admin log</span>
                 </button>
                 <button id="notifications-tab" class="nav-item" aria-pressed="false" hidden>
                     <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 00-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
-                    <span>Benachrichtigungen</span>
+                    <span>Notifications</span>
                 </button>
                 <button id="moderators-tab" class="nav-item" aria-pressed="false" hidden>
                     <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0112 0v3M17 5a3 3 0 010 6m1 4a5 5 0 013 5"/></svg>
-                    <span>Moderatoren</span>
+                    <span>Moderators</span>
                 </button>
             </nav>
             <div class="sidebar-footer">
                 <span class="avatar">A</span>
                 <div>
                     <span id="identity">Administrator</span>
-                    <small>Gallery-Verwaltung</small>
+                    <small>Gallery management</small>
                 </div>
             </div>
         </aside>
@@ -55,180 +55,180 @@
                     <span class="slash">/</span>
                     <span id="breadcrumb">Moderation</span>
                 </span>
-                <span class="secure"><span class="secure-dot" aria-hidden="true"></span> Geschützter Bereich</span>
+                <span class="secure"><span class="secure-dot" aria-hidden="true"></span> Protected area</span>
             </header>
             <div class="page-heading">
                 <div>
-                    <p class="eyebrow">GALLERY VERWALTEN</p>
-                    <h1 id="page-title">Icon-Meldungen</h1>
-                    <p id="page-subtitle" class="subtitle">Meldungen prüfen und Icons verwalten.</p>
+                    <p class="eyebrow">MANAGE THE GALLERY</p>
+                    <h1 id="page-title">Icon reports</h1>
+                    <p id="page-subtitle" class="subtitle">Review reports and manage icons.</p>
                 </div>
-                <button id="refresh" class="secondary" aria-label="Ansicht aktualisieren" hidden><span aria-hidden="true">↻</span><span class="refresh-label">Aktualisieren</span></button>
+                <button id="refresh" class="secondary" aria-label="Refresh view" hidden><span aria-hidden="true">↻</span><span class="refresh-label">Refresh</span></button>
             </div>
             <p id="message" role="status" aria-live="polite" hidden></p>
             <section id="panel" hidden>
                 <div id="moderation-view">
                     <div class="stats">
                         <div class="stat">
-                            <span>Geladene Meldungen</span>
+                            <span>Loaded reports</span>
                             <strong id="count-all">0</strong>
-                            <small>In dieser Ansicht</small>
+                            <small>In this view</small>
                         </div>
                         <div class="stat">
                             <span>
                                 <i class="dot pending"></i>
-                                Offen
+                                Pending
                             </span>
                             <strong id="count-pending">0</strong>
-                            <small>Warten auf deine Prüfung</small>
+                            <small>Awaiting your review</small>
                         </div>
                         <div class="stat">
                             <span>
                                 <i class="dot approved"></i>
-                                Ausgeblendet
+                                Hidden
                             </span>
                             <strong id="count-approved">0</strong>
-                            <small>Jederzeit wiederherstellbar</small>
+                            <small>Can be restored anytime</small>
                         </div>
                         <div class="stat">
                             <span>
                                 <i class="dot rejected"></i>
-                                Abgelehnt
+                                Rejected
                             </span>
                             <strong id="count-rejected">0</strong>
-                            <small>Icons bleiben sichtbar</small>
+                            <small>Icons remain visible</small>
                         </div>
                     </div>
                     <div class="queue-heading">
                         <div>
-                            <h2>Meldungen</h2>
-                            <p>Offene und bearbeitete Meldungen im Überblick.</p>
+                            <h2>Reports</h2>
+                            <p>An overview of pending and processed reports.</p>
                         </div>
-                        <button id="logout" class="quiet">Abmelden ↗</button>
+                        <button id="logout" class="quiet">Sign out ↗</button>
                     </div>
                     <div class="toolbar">
-                        <div class="tabs" role="group" aria-label="Nach Status filtern">
-                            <button data-filter="all" aria-pressed="false">Alle</button>
-                            <button data-filter="pending" aria-pressed="true">Offen</button>
-                            <button data-filter="approved" aria-pressed="false">Ausgeblendet</button>
-                            <button data-filter="rejected" aria-pressed="false">Abgelehnt</button>
+                        <div class="tabs" role="group" aria-label="Filter by status">
+                            <button data-filter="all" aria-pressed="false">All</button>
+                            <button data-filter="pending" aria-pressed="true">Pending</button>
+                            <button data-filter="approved" aria-pressed="false">Hidden</button>
+                            <button data-filter="rejected" aria-pressed="false">Rejected</button>
                         </div>
                         <div class="search-tools">
                             <input
                                 id="search"
                                 type="search"
-                                aria-label="Meldungen durchsuchen"
-                                placeholder="Name, Icon-ID oder Begründung …"
+                                aria-label="Search reports"
+                                placeholder="Name, icon ID or reason…"
                             />
-                            <select id="sort" aria-label="Sortierung">
-                                <option value="new">Neueste zuerst</option>
-                                <option value="old">Älteste zuerst</option>
+                            <select id="sort" aria-label="Sort order">
+                                <option value="new">Newest first</option>
+                                <option value="old">Oldest first</option>
                             </select>
                         </div>
                     </div>
                     <div class="list-meta">
                         <span id="result-count"></span>
-                        <span>Suche und Zähler beziehen sich auf geladene Meldungen.</span>
+                        <span>Search and counts apply to loaded reports.</span>
                     </div>
                     <div id="reports" class="reports"></div>
                     <div id="empty" class="empty" hidden>
                         <span>✓</span>
-                        <h3>Hier ist alles aufgeräumt.</h3>
-                        <p>Für diese Auswahl gibt es keine Meldungen.</p>
+                        <h3>All clear.</h3>
+                        <p>No reports match your filters.</p>
                     </div>
-                    <div class="load-more"><button id="more" class="secondary">Weitere Meldungen laden</button></div>
+                    <div class="load-more"><button id="more" class="secondary">Load more reports</button></div>
                     <footer>
                         PixelIt Gallery
-                        <span>Ausblenden ist reversibel. Bereits heruntergeladene Icons bleiben auf den Geräten.</span>
+                        <span>Hidden icons can be restored. Downloaded copies remain on devices.</span>
                     </footer>
                 </div>
                 <div id="notifications-view" hidden>
                     <div class="queue-heading">
-                        <h2>Telegram-Benachrichtigungen</h2>
-                        <button id="notifications-logout" class="quiet">Abmelden ↗</button>
+                        <h2>Telegram notifications</h2>
+                        <button id="notifications-logout" class="quiet">Sign out ↗</button>
                     </div>
                     <article class="telemetry-card notification-card">
                         <div class="connection-heading">
                             <span class="connection-icon" aria-hidden="true">↗</span>
-                            <div><span class="eyebrow">IMMER IM BILD</span><h3>Meldungen direkt in Telegram</h3></div>
+                            <div><span class="eyebrow">STAY IN THE LOOP</span><h3>Reports, straight to Telegram</h3></div>
                         </div>
-                        <p>Erhalte Hinweise auf neue Icon-Meldungen. Mehrere Meldungen werden gebündelt. Die Bearbeitung erfolgt weiterhin in der Admin-UI.</p>
-                        <p id="telegram-status" role="status" aria-live="polite">Status wird geladen …</p>
+                        <p>Get notified about new icon reports. Multiple reports are grouped into one message. Review them in the admin UI.</p>
+                        <p id="telegram-status" role="status" aria-live="polite">Loading status…</p>
                         <div class="telegram-actions">
-                            <button id="telegram-connect" class="primary" hidden>Telegram verbinden</button>
-                            <a id="telegram-link" class="secondary" target="_blank" rel="noopener noreferrer" hidden>Bot öffnen und Start drücken</a>
-                            <button id="telegram-disconnect" class="secondary" hidden>Verbindung entfernen</button>
+                            <button id="telegram-connect" class="primary" hidden>Connect Telegram</button>
+                            <a id="telegram-link" class="secondary" target="_blank" rel="noopener noreferrer" hidden>Open the bot and press Start</a>
+                            <button id="telegram-disconnect" class="secondary" hidden>Disconnect</button>
                         </div>
-                        <p class="settings-note">Der Verknüpfungslink gilt fünf Minuten. Teile ihn nicht. Nach dem Start beim Bot bitte „Aktualisieren“ klicken. Du kannst Benachrichtigungen hier oder mit /stop beim Bot abschalten.</p>
-                        <p class="settings-note">Telegram erhält deine Chat-ID, die Anzahl neuer Meldungen und den Link zur Admin-UI. Meldungstexte werden nicht übertragen.</p>
+                        <p class="settings-note">The connection link expires in five minutes. Keep it private. After starting the bot, click Refresh here. Turn off notifications here or send /stop to the bot.</p>
+                        <p class="settings-note">Telegram receives your chat ID, the number of new reports and the admin UI link. Report text is not shared.</p>
                     </article>
                 </div>
                 <div id="audit-view" hidden>
-                    <div class="queue-heading"><h2 id="audit-heading">Auditlog</h2><button id="audit-logout" class="quiet">Abmelden ↗</button></div>
+                    <div class="queue-heading"><h2 id="audit-heading">Audit log</h2><button id="audit-logout" class="quiet">Sign out ↗</button></div>
                     <p id="audit-description"></p>
                     <div id="audit-list" class="reports" aria-live="polite"></div>
-                    <div class="load-more"><button id="audit-more" class="secondary" hidden>Ältere Einträge</button></div>
+                    <div class="load-more"><button id="audit-more" class="secondary" hidden>Older entries</button></div>
                 </div>
                 <div id="moderators-view" hidden>
-                    <div class="queue-heading"><h2>Moderatoren verwalten</h2><button id="moderators-logout" class="quiet">Abmelden ↗</button></div>
-                    <p>Freigeschaltete GitHub-Accounts können Meldungen bearbeiten und Icons wiederherstellen. Maximal 100 Moderatoren.</p>
+                    <div class="queue-heading"><h2>Manage moderators</h2><button id="moderators-logout" class="quiet">Sign out ↗</button></div>
+                    <p>Approved GitHub accounts can review reports and restore icons. You can add up to 100 moderators.</p>
                     <form id="moderator-form" class="member-form">
-                        <label for="github-login">GitHub-Benutzername</label>
-                        <input id="github-login" required maxlength="40" autocomplete="off" spellcheck="false" placeholder="z. B. octocat" />
-                        <button class="primary">Moderator hinzufügen</button>
+                        <label for="github-login">GitHub username</label>
+                        <input id="github-login" required maxlength="40" autocomplete="off" spellcheck="false" placeholder="e.g. octocat" />
+                        <button class="primary">Add moderator</button>
                     </form>
-                    <p class="settings-note">Gib den GitHub-Benutzernamen ein. Der Account wird geprüft und über seine feste ID freigeschaltet. Namen können sich ändern; die Berechtigung bleibt beim selben Account.</p>
+                    <p class="settings-note">Enter a GitHub username. We verify the account and grant access using its permanent ID. Access stays with the same account if its name changes.</p>
                     <div id="moderator-list" class="reports"></div>
                 </div>
                 <div id="statistics-view" hidden>
                     <div class="stats telemetry-stats">
                         <div class="stat">
-                            <span>Aktiv · 24 Stunden</span>
+                            <span>Active · 24 hours</span>
                             <strong id="telemetry-24h">–</strong>
-                            <small>Zuletzt gemeldete Geräte</small>
+                            <small>Recently reporting devices</small>
                         </div>
                         <div class="stat">
-                            <span>Aktiv · 7 Tage</span>
+                            <span>Active · 7 days</span>
                             <strong id="telemetry-7d">–</strong>
-                            <small>Zuletzt gemeldete Geräte</small>
+                            <small>Recently reporting devices</small>
                         </div>
                         <div class="stat">
-                            <span>Aktiv · 30 Tage</span>
+                            <span>Active · 30 days</span>
                             <strong id="telemetry-30d">–</strong>
-                            <small>Basis der Verteilungen</small>
+                            <small>Basis for distributions</small>
                         </div>
                         <div class="stat">
-                            <span>Erfasste Geräte</span>
+                            <span>Recorded devices</span>
                             <strong id="telemetry-total">–</strong>
-                            <small>Alle Telemetrie-Datensätze</small>
+                            <small>All telemetry records</small>
                         </div>
                     </div>
                     <div class="queue-heading">
                         <div>
-                            <h2>Geräteübersicht</h2>
-                            <p>Verteilungen der letzten 30 Tage · jeweils die häufigsten 8 Einträge.</p>
+                            <h2>Device overview</h2>
+                            <p>Distributions over the last 30 days · Top 8 entries per category.</p>
                         </div>
-                        <button id="statistics-logout" class="quiet">Abmelden ↗</button>
+                        <button id="statistics-logout" class="quiet">Sign out ↗</button>
                     </div>
                     <p id="statistics-message" role="status" hidden></p>
                     <div class="telemetry-grid">
                         <article class="telemetry-card">
-                            <h3>Firmware-Versionen</h3>
+                            <h3>Firmware versions</h3>
                             <div id="telemetry-versions"></div>
                         </article>
                         <article class="telemetry-card">
-                            <h3>Hardwaretypen</h3>
+                            <h3>Hardware types</h3>
                             <div id="telemetry-hardware"></div>
                         </article>
                         <article class="telemetry-card">
-                            <h3>Matrix-Konfigurationen</h3>
+                            <h3>Matrix configurations</h3>
                             <div id="telemetry-matrices"></div>
                         </article>
                     </div>
                     <footer>
-                        <span id="statistics-updated">Noch nicht geladen</span>
+                        <span id="statistics-updated">Not loaded yet</span>
                         <span>
-                            Telemetrie zeigt letzte Meldungen, keine Live-Verbindungen. Zeiträume überschneiden sich.
+                            Telemetry reflects recent reports, not live connections. Time windows overlap.
                         </span>
                     </footer>
                 </div>
@@ -240,19 +240,19 @@
                 <h2 id="confirm-title"></h2>
                 <p id="confirm-text"></p>
                 <div class="dialog-actions">
-                    <button value="cancel" class="secondary">Abbrechen</button>
-                    <button value="confirm" id="confirm-action" class="primary">Bestätigen</button>
+                    <button value="cancel" class="secondary">Cancel</button>
+                    <button value="confirm" id="confirm-action" class="primary">Confirm</button>
                 </div>
             </form>
         </dialog>
         <dialog id="preview-dialog">
             <form method="dialog">
                 <div class="preview-heading">
-                    <h2 id="preview-title">Icon-Vorschau</h2>
-                    <button value="close" class="secondary" aria-label="Vorschau schließen">✕</button>
+                    <h2 id="preview-title">Icon preview</h2>
+                    <button value="close" class="secondary" aria-label="Close preview">✕</button>
                 </div>
                 <div id="large-preview"></div>
-                <p>Erstes Bild · Originalfarben in RGB565</p>
+                <p>First frame · Original RGB565 colors</p>
             </form>
         </dialog>
         <script src="/admin/app.js" defer></script>

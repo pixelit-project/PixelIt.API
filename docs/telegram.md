@@ -44,9 +44,9 @@ and `routes/` folders, already included in the Docker image.
 
 ## Connect an account
 
-In the admin UI, open **Benachrichtigungen → Telegram verbinden**, open the generated
+In the admin UI, open **Notifications → Connect Telegram**, open the generated
 link and press **Start** in the bot's private chat. Return to the UI and click
-**Aktualisieren** to confirm the connection. There is no browser polling.
+**Refresh** to confirm the connection. There is no browser polling.
 The bot confirms a successfully saved connection once in the private chat.
 This confirmation uses the webhook response and contains no GitHub credentials.
 Expired, invalid or replayed link codes do not produce a confirmation.
@@ -57,7 +57,7 @@ Generating another link invalidates the previous one. Only private chats from th
 chat owner are accepted. A Telegram chat can be linked to only one GitHub account.
 An existing active connection remains active until replaced or disconnected.
 
-Use **Verbindung entfernen** or send `/stop` to the bot to disable notifications
+Use **Disconnect** or send `/stop` to the bot to disable notifications
 and delete the subscription and pending linking code. Removing a moderator also
 removes the subscription. After being added again, they must opt in again.
 Changing the configured owner excludes the former owner from delivery unless

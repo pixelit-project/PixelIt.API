@@ -44,8 +44,11 @@ async function req(path, body, headers = {}) {
 test('admin session, CSRF, logout, validation and public reports', async () => {
     const publicPage = await req('/admin/');
     assert.equal(publicPage.status, 200);
-    assert.match(await publicPage.text(), /PixelIt Admin/);
-    assert.doesNotMatch(await (await req('/admin/')).text(), /statistics-tab|Icon-Meldungen|telemetry-/);
+    const loginHtml = await publicPage.text();
+    assert.match(loginHtml, /PixelIt Admin/);
+    assert.match(loginHtml, /lang="en"/);
+    assert.match(loginHtml, />Password</);
+    assert.doesNotMatch(await (await req('/admin/')).text(), /statistics-tab|Icon reports|telemetry-/);
     assert.equal((await req('/admin/app.js')).status, 401);
     assert.equal((await req('/admin/login.js')).status, 200);
     assert.equal((await req('/api/admin/reports')).status, 401);
@@ -57,7 +60,10 @@ test('admin session, CSRF, logout, validation and public reports', async () => {
     const set = login.headers.get('set-cookie');
     assert.match(set, /HttpOnly; Secure; SameSite=Strict/);
     const headers = { ...origin, Cookie: set.split(';')[0] };
-    assert.match(await (await req('/admin/', undefined, headers)).text(), /statistics-tab/);
+    const dashboardHtml = await (await req('/admin/', undefined, headers)).text();
+    assert.match(dashboardHtml, /statistics-tab/);
+    assert.match(dashboardHtml, /lang="en"/);
+    assert.match(dashboardHtml, /Icon reports/);
     assert.equal((await req('/admin/app.js', undefined, headers)).status, 200);
     assert.equal((await req('/api/admin/reports', undefined, headers)).status, 200);
     assert.equal(

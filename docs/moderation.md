@@ -24,7 +24,7 @@ Changing the owner requires a configuration change and restart. No first-login
 account is automatically promoted. GitHub login requests no repository or email scopes.
 The existing `GITHUB_TOKEN` for release metadata is unrelated and is not used for login.
 
-Open `/admin/` and choose **Mit GitHub anmelden**. As owner, open **Moderatoren**
+Open `/admin/` and choose **Sign in with GitHub**. As owner, open **Moderators**
 to add accounts by their GitHub username (optionally prefixed with `@`). The API
 resolves the current personal account once through GitHub and stores its immutable
 ID. Removal uses that stored ID, so it also works during a GitHub outage or after
@@ -133,14 +133,14 @@ animations or send anything to a display. Report text is rendered as plain text.
 
 ## Audit views
 
-**Moderationsprotokoll** shows committed hide/reject/restore decisions by both
+**Moderation log** shows committed hide/reject/restore decisions by both
 moderators and admins, with actor, report/icon ID and timestamp. Existing moderation
 history remains available. GitHub names are the latest name saved at login or a
 moderation/membership action; immutable `github:ID` remains the authority. Older
 unknown names fall back to the stored actor. The legacy shared password account
 continues to appear as `admin`.
 
-**Admin-Protokoll**, visible only to the owner, shows moderator additions and removals,
+**Admin log**, visible only to the owner, shows moderator additions and removals,
 including the acting admin, target account and timestamp. Names are stored as known
 at the time of the administrative action. Membership changes, Telegram subscription
 removal and the audit insert commit in one transaction; an audit failure rolls the
@@ -220,6 +220,6 @@ After logout or session expiry, the browser returns to the login page.
 ## Telegram notifications
 
 GitHub-authenticated owners and moderators can opt in to Telegram notifications
-under **Benachrichtigungen**. New icon reports are bundled; duplicate reports do
+under **Notifications**. New icon reports are bundled; duplicate reports do
 not produce additional notifications. See [Telegram setup and delivery limits](telegram.md)
 for bot configuration, webhook registration, privacy, unsubscribe and failure behavior.

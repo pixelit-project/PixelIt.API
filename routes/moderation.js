@@ -125,7 +125,7 @@ function registerModerationRoutes(
         const fileName = authenticated ? 'admin.html' : 'admin-login.html';
         res.set('Vary', 'Cookie');
         res.type('html').send(fs.readFileSync(path.join(__dirname, '..', 'libs', fileName), 'utf8')
-            .replace('<!-- GITHUB_LOGIN -->', github.enabled ? '<a class="primary github-login" href="/api/admin/github/login">Mit GitHub anmelden</a>' : '')
+            .replace('<!-- GITHUB_LOGIN -->', github.enabled ? '<a class="primary github-login" href="/api/admin/github/login">Sign in with GitHub</a>' : '')
             .replace('<!-- PASSWORD_HIDDEN -->', github.configured ? 'hidden' : ''));
     }
 
@@ -337,7 +337,7 @@ function registerModerationRoutes(
         pendingLogins.delete(state);
         res.clearCookie('__Host-pixelit_oauth', { httpOnly: true, secure: true, sameSite: 'lax', path: '/' });
         if (typeof req.query.code !== 'string' || req.query.code.length > 512) {
-            res.status(400).send('Anmeldung abgebrochen. Bitte /admin/ erneut öffnen.');
+            res.status(400).send('Sign-in cancelled. Please open /admin/ again.');
             return;
         }
         try {
@@ -345,7 +345,7 @@ function registerModerationRoutes(
             const role = user.id === github.ownerId ? 'admin' : 'moderator';
             if (role !== 'admin' && !(await repo.isModerator(user.id))) {
                 log.warn('GitHubLogin: account {githubId} denied.', { ...getRequestContext(req), githubId: user.id });
-                res.status(403).send('Dieser GitHub-Account ist nicht freigeschaltet.');
+                res.status(403).send('This GitHub account does not have access.');
                 return;
             }
             await repo.rememberIdentity(user.id, user.login);

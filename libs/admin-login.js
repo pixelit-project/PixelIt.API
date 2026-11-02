@@ -17,12 +17,12 @@ async function login(event) {
         });
         if (!response.ok) {
             const messages = {
-                401: 'Anmeldung fehlgeschlagen.',
-                403: 'Anmeldung über diese Adresse nicht möglich.',
-                429: 'Zu viele Anmeldeversuche. Bitte versuche es später erneut.',
-                503: 'Anmeldung derzeit nicht verfügbar.',
+                401: 'Sign-in failed.',
+                403: 'Sign-in is not allowed from this address.',
+                429: 'Too many sign-in attempts. Please try again later.',
+                503: 'Sign-in is currently unavailable.',
             };
-            throw new Error(messages[response.status] || 'Anmeldung fehlgeschlagen. Bitte versuche es erneut.');
+            throw new Error(messages[response.status] || 'Sign-in failed. Please try again.');
         }
         window.location.replace('/admin/');
     } catch (error) {
