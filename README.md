@@ -205,7 +205,7 @@ at startup; see [Telegram setup](docs/telegram.md).
 
 ## Changelog
 
-### Unreleased
+### 2.1.1 (2026-11-02)
 
 - (o0shojo0o) Register the Telegram webhook automatically at startup while preserving queued updates; retry failed registrations with increasing delays without preventing API startup.
 
