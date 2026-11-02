@@ -50,7 +50,7 @@ jobs:
           persist-credentials: false
 
       - name: Verify the tested commit is still current
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const { data: pr } = await github.rest.pulls.get({
