@@ -179,6 +179,7 @@ async function saveBitmap(req, res, next) {
     }
     try {
         await repo.saveBMP({ ...req.body });
+        cache.invalidateBitmaps();
         log.info('{apiPath}: Successfully saved', {
             apiPath: 'SaveBitmap',
             sourceIP: tools.getIPFromRequest(req),

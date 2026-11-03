@@ -10,6 +10,7 @@ const loggedErrors = [];
 stub('../libs/logger', { info: noop, warn: noop, error: (message, properties) => loggedErrors.push({ message, properties }) });
 let save = async () => {};
 let saves = 0;
+let invalidations = 0;
 let lookups = 0;
 let readFailure;
 let releases = [];
@@ -18,7 +19,7 @@ const read = value => {
     if (readFailure) throw readFailure;
     return value;
 };
-stub('../libs/cache', { getOrSet: async (key, load) => load() });
+stub('../libs/cache', { getOrSet: async (key, load) => load(), invalidateBitmaps: () => { invalidations++; } });
 stub('../libs/gitRepo', {
     getGitReleases: async () => read(releases),
     getOfficialBuilds: async () => read(['official']),
@@ -62,9 +63,11 @@ const telemetry = { uuid: 'a'.repeat(40), version: '3.3.3', type: 'esp32', matri
 test('write endpoints validate input, wait for persistence, and report failures', async () => {
     for (const [path, body] of [['/api/SaveBitmap', bitmap], ['/api/Telemetry', telemetry]]) {
         const previousSaves = saves;
+        const previousInvalidations = invalidations;
         const previousLookups = lookups;
         assert.equal((await request(path, {})).status, 400);
         assert.equal(saves, previousSaves);
+        assert.equal(invalidations, previousInvalidations);
         assert.equal(lookups, previousLookups);
 
         let release;
@@ -76,11 +79,15 @@ test('write endpoints validate input, wait for persistence, and report failures'
         await entered;
         await new Promise(resolve => setImmediate(resolve));
         assert.equal(settled, false, 'must not acknowledge an unfinished database write');
+        assert.equal(invalidations, previousInvalidations, 'Do not invalidate before persistence');
         release();
         assert.deepEqual(await pending, { status: 200, text: 'OK' });
+        const expectedInvalidations = previousInvalidations + (path === '/api/SaveBitmap' ? 1 : 0);
+        assert.equal(invalidations, expectedInvalidations);
 
         save = async () => { throw new Error('private database details'); };
         assert.deepEqual(await request(path, body), { status: 500, text: 'Internal server error' });
+        assert.equal(invalidations, expectedInvalidations, 'Failed writes preserve cached bitmaps');
     }
 });
 
