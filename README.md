@@ -212,7 +212,7 @@ at startup; see [Telegram setup](docs/telegram.md).
 
 ## Changelog
 
-### Unreleased
+### 2.3.3 (2026-11-04)
 
 - (o0shojo0o) Refresh bitmap caches after successful uploads so newly saved icons appear immediately.
 
