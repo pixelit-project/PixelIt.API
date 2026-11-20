@@ -42,7 +42,10 @@ registerReleaseRoutes(app);
 const telegramNotifications = registerModerationRoutes(app, moderationRepo, cache);
 
 app.use((error, req, res, next) => {
-    if (req.path.toLowerCase().replace(/\/+$/, '') === '/api/telegram/webhook') {
+    const route = req.path.toLowerCase().replace(/\/+$/, '');
+    if (route === '/api/icon-ratings') {
+        log.error('Icon ratings: request failed; details suppressed.', { sourceIP: tools.getIPFromRequest(req) });
+    } else if (route === '/api/telegram/webhook') {
         // Parser errors may contain the incoming body, including one-time linking codes.
         log.error('TelegramWebhook: request failed; details suppressed.', { sourceIP: tools.getIPFromRequest(req) });
     } else {

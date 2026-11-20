@@ -65,6 +65,11 @@ services:
 <!--
 ### **WORK IN PROGRESS**
 -->
+Create an empty MySQL database and a user with access to it. On startup, the API
+creates all required tables inside that database and leaves existing tables and
+data in place. For migration permissions and behavior, see
+[automatic database setup](docs/moderation.md#automatic-database-setup).
+
 ## Environment variables
 
 Set these values in the Docker Compose `environment` section or in a `.env`
@@ -77,19 +82,21 @@ set; the Compose example explicitly enables `TELEMETRY_USER_CHECK`.
 | `TELEMETRY_USER_CHECK` | `false` | Set to `"true"` to restrict `/api/Statistics`, `/api/UserMap`, and `/api/UserMapData` to clients whose `uuid` query parameter matches a telemetry record updated within the last 30 days. Otherwise the response contains `error: { telemetryUser: false }`. This does not disable telemetry collection. The check is cached for 30 seconds. |
 | `TRUSTED_PROXIES` | Empty (no proxy trust) | Comma-separated trusted proxy IPs or CIDRs used to resolve the client IP from `X-Forwarded-For`. Leave empty for direct access. See the proxy configuration notes below. |
 | `MYSQL_HOST` | Not set by the API | MySQL server hostname or IP, reachable from the API container. |
-| `MYSQL_DATABASE` | Not set by the API | Name of the existing PixelIt database. |
+| `MYSQL_DATABASE` | Not set by the API | Name of the MySQL database. The API can initialize an empty database. |
 | `MYSQL_USER` | Not set by the API | MySQL user with access to the PixelIt tables. |
 | `MYSQL_PASSWORD` | Not set by the API | Password for the MySQL user. |
 | `TELEGRAM_BOT_TOKEN` | Not set (notifications disabled) | Optional bot token for moderation notifications. Requires GitHub admin login and the other Telegram settings; see [setup](docs/telegram.md). |
 | `TELEGRAM_BOT_USERNAME` | Not set | Bot username without `@`. |
 | `TELEGRAM_WEBHOOK_SECRET` | Not set | Random 32–256 character webhook authentication secret (`A-Z`, `a-z`, `0-9`, `_`, `-`). |
 | `GITHUB_TOKEN` | Not set (unauthenticated requests) | Optional token sent with GitHub API requests for PixelIt release information. |
-| `API_GLOBAL_LIMIT_WINDOW_MS` | `300000` (5 minutes) | Rate-limit window in milliseconds for all `/api/` routes. |
+| `API_GLOBAL_LIMIT_WINDOW_MS` | `300000` (5 minutes) | Rate-limit window in milliseconds for `/api/` routes outside the dedicated rating write limit. |
 | `API_GLOBAL_LIMIT_MAX` | `100` | Maximum requests per client in the global window. |
 | `API_GLOBAL_LIMIT_EXCLUDE` | Empty | Comma-separated exact client IPs exempt from the global limiter only. |
 | `API_TELEMETRY_LIMIT_WINDOW_MS` | `900000` (15 minutes) | Additional rate-limit window in milliseconds for `POST /api/Telemetry`. |
 | `API_TELEMETRY_LIMIT_MAX` | `10` | Maximum telemetry requests per client in the telemetry window. |
 | `API_TELEMETRY_LIMIT_EXCLUDE` | Empty | Comma-separated exact client IPs exempt from the telemetry limiter only. |
+| `API_RATING_LIMIT_WINDOW_MS` | `900000` (15 minutes) | Dedicated rate-limit window in milliseconds for `POST /api/icon-ratings`. |
+| `API_RATING_LIMIT_MAX` | `1000` | Maximum rating submissions per client in that window. |
 | `API_SAVEBITMAP_LIMIT_WINDOW_MS` | `900000` (15 minutes) | Additional rate-limit window in milliseconds for `POST /api/SaveBitmap`. |
 | `API_SAVEBITMAP_LIMIT_MAX` | `10` | Maximum bitmap uploads per client in the bitmap window. |
 | `API_SAVEBITMAP_LIMIT_EXCLUDE` | Empty | Comma-separated exact client IPs exempt from the bitmap limiter only. |
@@ -210,7 +217,17 @@ deployment requirements and endpoints. Admins and moderators can optionally conn
 Telegram for bundled notifications about new reports. Webhook registration is automatic
 at startup; see [Telegram setup](docs/telegram.md).
 
+## Icon ratings
+
+[Icon ratings endpoints](docs/icon-ratings.md) provide a community average and
+one vote per icon and PixelIt device UUID.
+
 ## Changelog
+
+### Unreleased
+
+- (o0shojo0o) Store one rating per icon and PixelIt device UUID and expose community averages.
+- (o0shojo0o) Create all required tables automatically in an empty database.
 
 ### 2.3.3 (2026-11-04)
 

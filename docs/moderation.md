@@ -57,9 +57,9 @@ shared administrator identity; enable GitHub login for individual accounts.
 At startup the API applies the bundled `migrations/*.sql` files before opening its
 HTTP port. The MySQL user needs `CREATE`, `SELECT` and `INSERT` for migration setup,
 in addition to the existing application permissions (including moderation `UPDATE` and moderator `DELETE`).
-The existing PixelIt database and bitmap/user tables must already exist.
-
-The moderation migration only creates new tables; existing bitmap data is unchanged.
+Create the MySQL database before startup. The migrations create all required API
+tables, including bitmap, bitmap user, hit count, telemetry and icon rating
+tables. They retain existing tables and data.
 Already applied migrations are tracked with checksums in `pixel_it_schema_migrations`
 and skipped on later starts. A database lock serializes migration runs across API
 instances. Migration files must not be edited after deployment; add a new versioned
@@ -69,7 +69,7 @@ without stored procedures or semicolons inside SQL string literals.
 If the database is unavailable, permissions are missing, or a migration fails, the
 API exits with code 1 without accepting requests. Check the database and permissions,
 then restart. MySQL DDL is not transactional; a partial run is retried safely because
-the current migration uses `CREATE TABLE IF NOT EXISTS`. Keep normal database backups.
+the migrations use `CREATE TABLE IF NOT EXISTS`. Keep normal database backups.
 An installation that previously applied the moderation SQL manually is also supported:
 its existing tables are retained and the migration is registered on the first start.
 

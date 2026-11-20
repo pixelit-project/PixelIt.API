@@ -4,13 +4,15 @@ const asyncRoute = require('../libs/asyncRoute');
 const repo = require('../libs/pixelItRepo');
 const cache = require('../libs/cache');
 const { validBitmap } = require('../libs/validation');
-const { saveBitmapLimiter } = require('../libs/rateLimit');
+const { saveBitmapLimiter, ratingWriteLimiter } = require('../libs/rateLimit');
 
 function registerBitmapRoutes(app) {
     app.get('/api/GetBMPByID/:id', asyncRoute(getBitmapById));
     app.get('/api/GetBMPByID_v2/:id', asyncRoute(getBitmapByIdV2));
     app.get('/api/GetBMPNewst', asyncRoute(getNewestBitmap));
     app.get('/api/GetBMPAll', asyncRoute(getBitmaps));
+    app.get('/api/icon-ratings', asyncRoute(getIconRatings));
+    app.post('/api/icon-ratings', ratingWriteLimiter, asyncRoute(rateIcon));
     app.post('/api/SaveBitmap', saveBitmapLimiter, asyncRoute(saveBitmap));
 }
 
@@ -190,6 +192,38 @@ async function saveBitmap(req, res, next) {
     } catch (error) {
         next(error);
     }
+}
+
+const ratingUuidPattern = /^[0-9a-f]{40}$/i;
+
+async function getIconRatings(req, res) {
+    const uuid = req.get('X-PixelIt-Rating-UUID');
+    res.set('Cache-Control', 'no-store');
+    if (uuid !== undefined && !ratingUuidPattern.test(uuid)) {
+        log.warn('Icon ratings: invalid voter ID from {sourceIP}', { sourceIP: tools.getIPFromRequest(req) });
+        return res.status(400).json({ error: 'Invalid rating UUID' });
+    }
+    const ratings = await repo.getIconRatings(uuid ?? null);
+    res.json(ratings);
+}
+
+async function rateIcon(req, res) {
+    const uuid = req.get('X-PixelIt-Rating-UUID');
+    const { iconId, stars } = req.body || {};
+    res.set('Cache-Control', 'no-store');
+    const sourceIP = tools.getIPFromRequest(req);
+    if (!ratingUuidPattern.test(uuid) || !Number.isSafeInteger(iconId) || iconId < 1
+        || !Number.isInteger(stars) || stars < 1 || stars > 5) {
+        log.warn('Icon rating: invalid submission from {sourceIP}', { sourceIP });
+        return res.status(400).json({ error: 'Invalid rating' });
+    }
+    const rating = await repo.rateIcon(iconId, uuid, stars);
+    if (!rating) {
+        log.warn('Icon rating: icon {iconId} unavailable for {sourceIP}', { iconId, sourceIP });
+        return res.status(404).json({ error: 'Icon not found' });
+    }
+    log.info('Icon rating recorded or already present for icon {iconId} from {sourceIP}', { iconId, sourceIP });
+    res.json(rating);
 }
 
 module.exports = registerBitmapRoutes;

@@ -321,10 +321,55 @@ async function getAdminStatistics() {
     };
 }
 
+async function getIconRatings(uuid, iconId) {
+    const values = [uuid];
+    if (iconId !== undefined) {
+        values.push(iconId);
+    }
+    const [rows] = await connection.execute(`
+        SELECT ratings.icon_id AS iconId,
+               AVG(ratings.stars) AS average,
+               COUNT(*) AS count,
+               MAX(CASE WHEN ratings.voter_uuid = UNHEX(?) THEN ratings.stars END) AS myRating
+        FROM pixel_it_icon_ratings ratings
+        JOIN pixel_it_bitmap bitmap ON bitmap.id = ratings.icon_id
+        WHERE NOT EXISTS (
+            SELECT 1 FROM pixel_it_reports report
+            WHERE report.icon_id = bitmap.id AND report.status = 'approved'
+        )
+        ${iconId === undefined ? '' : 'AND ratings.icon_id = ?'}
+        GROUP BY ratings.icon_id
+    `, values);
+    return rows.map(row => ({
+        iconId: Number(row.iconId),
+        average: Number(row.average),
+        count: Number(row.count),
+        myRating: row.myRating === null ? null : Number(row.myRating),
+    }));
+}
+
+async function rateIcon(iconId, uuid, stars) {
+    // A duplicate submission keeps the original rating, even on concurrent writes or retries.
+    await connection.execute(`
+        INSERT INTO pixel_it_icon_ratings (icon_id, voter_uuid, stars)
+        SELECT bitmap.id, UNHEX(?), ?
+        FROM pixel_it_bitmap bitmap
+        WHERE bitmap.id = ? AND NOT EXISTS (
+            SELECT 1 FROM pixel_it_reports report
+            WHERE report.icon_id = bitmap.id AND report.status = 'approved'
+        )
+        ON DUPLICATE KEY UPDATE stars = pixel_it_icon_ratings.stars
+    `, [uuid, stars, iconId]);
+    const [rating] = await getIconRatings(uuid, iconId);
+    return rating?.myRating ? rating : null;
+}
+
 module.exports = {
     getBMPByID,
     getBMPByID_v2,
     getBMPAll,
+    getIconRatings,
+    rateIcon,
     getBMPNewst,
     saveTelemetry,
     saveBMP,

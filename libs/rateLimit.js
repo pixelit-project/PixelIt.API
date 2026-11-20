@@ -18,13 +18,18 @@ if (process.env.API_SAVEBITMAP_LIMIT_EXCLUDE) {
 }
 
 
+function isRatingSubmission(req) {
+    // The global limiter is mounted at /api. Rating writes have their own IP budget.
+    return req.method === 'POST' && /^\/icon-ratings\/?$/i.test(req.path);
+}
+
 const apiLimiter = rateLimit({
     windowMs: Number(process.env.API_GLOBAL_LIMIT_WINDOW_MS) || 5 * 60 * 1000,
     max: Number(process.env.API_GLOBAL_LIMIT_MAX) || 100,
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req, response) => tools.getRateLimitKey(req),
-    skip: (req, response) => globelLimitExclude.includes(tools.getIPFromRequest(req)),
+    skip: req => isRatingSubmission(req) || globelLimitExclude.includes(tools.getIPFromRequest(req)),
     handler: (req, response, next, options) => {
         response.status(options.statusCode).send(options.message);
         const sourceIP = tools.getIPFromRequest(req);
@@ -86,6 +91,21 @@ const reportLimiter = rateLimit({
             useragent: req.useragent,
             rateLimit: req.rateLimit,
         });
+    },
+});
+
+const ratingWriteLimiter = rateLimit({
+    windowMs: getPositiveLimit(process.env.API_RATING_LIMIT_WINDOW_MS, 15 * 60 * 1000),
+    max: getPositiveLimit(process.env.API_RATING_LIMIT_MAX, 1000),
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: req => tools.getRateLimitKey(req),
+    handler: (req, res, next, options) => {
+        log.warn('Icon rating API rate limit reached from {sourceIP}', {
+            sourceIP: tools.getIPFromRequest(req),
+            rateLimit: req.rateLimit,
+        });
+        res.status(options.statusCode).send(options.message);
     },
 });
 
@@ -161,6 +181,7 @@ module.exports = {
     telemetryLimiter,
     saveBitmapLimiter,
     reportLimiter,
+    ratingWriteLimiter,
     adminLoginLimiter,
     adminReadLimiter,
     adminActionLimiter,

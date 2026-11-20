@@ -13,6 +13,7 @@ let saves = 0;
 let invalidations = 0;
 let lookups = 0;
 let readFailure;
+const votes = new Map();
 let releases = [];
 let statistics = { buildStats: [], versionStats: [], matrixStats: [], countryStats: [], sensorStats: [] };
 const read = value => {
@@ -29,13 +30,21 @@ stub('../libs/pixelItRepo', {
     getBMPByID_v2: async () => read(null),
     getBMPNewst: async () => read(null),
     getBMPAll: async () => read([]),
+    getIconRatings: async uuid => read(votes.size ? [testRating(uuid)] : []),
+    rateIcon: async (iconId, uuid, stars) => {
+        read(null);
+        if (iconId !== 1) return null;
+        if (!votes.has(uuid.toLowerCase())) votes.set(uuid.toLowerCase(), stars);
+        return testRating(uuid);
+    },
     getUserMapData: async () => read([]),
     getStatistics: async () => read(structuredClone(statistics)),
     saveBMP: async body => { saves++; await save(body); },
     saveTelemetry: async body => { saves++; await save(body); },
 });
 stub('fast-geoip', { lookup: async () => { lookups++; return null; } });
-process.env.API_GLOBAL_LIMIT_MAX = '1000';
+process.env.API_GLOBAL_LIMIT_MAX = '100';
+delete process.env.API_RATING_LIMIT_MAX;
 process.env.API_SAVEBITMAP_LIMIT_MAX = '1000';
 process.env.API_TELEMETRY_LIMIT_MAX = '1000';
 delete process.env.TRUSTED_PROXIES;
@@ -57,6 +66,15 @@ async function request(path, body, headers = {}) {
         req.end(typeof body === 'string' ? body : JSON.stringify(body));
     });
 }
+function testRating(uuid) {
+    return {
+        iconId: 1,
+        average: [...votes.values()].reduce((sum, stars) => sum + stars, 0) / votes.size,
+        count: votes.size,
+        myRating: votes.get(uuid?.toLowerCase()) ?? null,
+    };
+}
+
 const bitmap = { name: 'Test', userName: 'User', sizeX: 1, sizeY: 1, animated: false, rgb565array: '[65535]' };
 const telemetry = { uuid: 'a'.repeat(40), version: '3.3.3', type: 'esp32', matrix: { type: 1, name: 'Column major', width: 32, height: 8 }, sensors: [] };
 
@@ -88,6 +106,40 @@ test('write endpoints validate input, wait for persistence, and report failures'
         save = async () => { throw new Error('private database details'); };
         assert.deepEqual(await request(path, body), { status: 500, text: 'Internal server error' });
         assert.equal(invalidations, expectedInvalidations, 'Failed writes preserve cached bitmaps');
+    }
+});
+
+test('icon ratings validate submissions and return the original vote on retry', async () => {
+    const path = '/api/icon-ratings';
+    const uuid = 'a'.repeat(40);
+    const headers = { 'X-PixelIt-Rating-UUID': uuid };
+    assert.deepEqual(await request(path), { status: 200, text: '[]' });
+    assert.equal((await request(path, undefined, { 'X-PixelIt-Rating-UUID': 'ea257b3d-dccb-4583-bdf6-d470302c0ff5' })).status, 400);
+    assert.equal((await request(path, { iconId: 1, stars: 5 })).status, 400);
+    for (const body of [
+        { iconId: 0, stars: 5 }, { iconId: '1', stars: 5 }, { iconId: 1, stars: 0 },
+        { iconId: 1, stars: 6 }, { iconId: 1, stars: 2.5 }, { iconId: 1, stars: '5' },
+    ]) {
+        assert.equal((await request(path, body, headers)).status, 400);
+    }
+    assert.equal((await request(path, { iconId: 2, stars: 5 }, headers)).status, 404);
+    const firstVote = await request(path, { iconId: 1, stars: 5 }, headers);
+    assert.equal(firstVote.status, 200);
+    assert.deepEqual(JSON.parse(firstVote.text), { iconId: 1, average: 5, count: 1, myRating: 5 });
+    assert.deepEqual(await request(path, { iconId: 1, stars: 1 }, { 'X-PixelIt-Rating-UUID': uuid.toUpperCase() }), firstVote);
+
+    const other = await request(path, { iconId: 1, stars: 2 }, { 'X-PixelIt-Rating-UUID': 'b'.repeat(40) });
+    assert.deepEqual(JSON.parse(other.text), { iconId: 1, average: 3.5, count: 2, myRating: 2 });
+    assert.deepEqual(JSON.parse((await request(path, undefined, headers)).text), [{ iconId: 1, average: 3.5, count: 2, myRating: 5 }]);
+    assert.deepEqual(JSON.parse((await request(path)).text), [{ iconId: 1, average: 3.5, count: 2, myRating: null }]);
+
+    loggedErrors.length = 0;
+    readFailure = new Error(uuid);
+    try {
+        assert.equal((await request(path, { iconId: 1, stars: 5 }, headers)).status, 500);
+        assert.doesNotMatch(JSON.stringify(loggedErrors), new RegExp(uuid));
+    } finally {
+        readFailure = undefined;
     }
 });
 
@@ -212,4 +264,21 @@ test('malformed Telegram webhook JSON never places linking codes in error logs',
     assert.equal(response.status, 400);
     assert.ok(loggedErrors.length > 0);
     assert.doesNotMatch(JSON.stringify(loggedErrors), /PRIVATE-LINK-CODE/);
+});
+
+test('rating submissions have an independent high default limit', async () => {
+    app.set('trust proxy', 'loopback');
+    const headers = { 'X-Forwarded-For': '192.0.2.80', 'X-PixelIt-Rating-UUID': 'c'.repeat(40) };
+    try {
+        for (let index = 0; index < 100; index++) {
+            assert.equal((await request('/api/icon-ratings', undefined, headers)).status, 200);
+        }
+        assert.equal((await request('/api/icon-ratings', undefined, headers)).status, 429);
+        for (let index = 0; index < 1000; index++) {
+            assert.equal((await request('/API/Icon-Ratings/', { iconId: 1, stars: 4 }, headers)).status, 200);
+        }
+        assert.equal((await request('/api/icon-ratings', { iconId: 1, stars: 4 }, headers)).status, 429);
+    } finally {
+        app.set('trust proxy', false);
+    }
 });
