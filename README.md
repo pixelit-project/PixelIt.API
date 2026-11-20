@@ -230,6 +230,9 @@ the **Unreleased** notes into a dated version section and update the branch and
 tag together. Prereleases use the same notes without moving them. The workflow
 runs tests and smoke-tests the production container before publishing the
 versioned GHCR image and GitHub release. Stable tags also update `latest`.
+If a prepared release fails before GitHub publishes it, dispatch the workflow
+on the default branch with that existing tag to retry publication without
+moving the tag.
 
 The Actions token needs permission to update the default branch and release
 tag and publish a GitHub release. For GHCR, the workflow uses the existing
