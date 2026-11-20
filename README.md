@@ -232,9 +232,11 @@ runs tests and smoke-tests the production container before publishing the
 versioned GHCR image and GitHub release. Stable tags also update `latest`.
 
 The Actions token needs permission to update the default branch and release
-tag, publish a GitHub release, and write to the GHCR package linked to this
-repository. Any repository rules affecting these operations must allow the
-workflow to perform them.
+tag and publish a GitHub release. For GHCR, the workflow uses the existing
+`ACCESS_TOKEN` secret if configured. It must have `write:packages` and write
+access to the package. Without the secret, the workflow uses the Actions token.
+For an existing GHCR package, grant this repository **Write** under **Manage
+Actions access** in the package settings to let that token publish images.
 
 ## Changelog
 

@@ -85,7 +85,8 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ github.token }}
+          # Existing GHCR packages may still require the credential used by the old publisher.
+          password: ${{ secrets.ACCESS_TOKEN || github.token }}
       - name: Publish tested image and GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
