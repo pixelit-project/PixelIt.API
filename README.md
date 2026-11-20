@@ -240,6 +240,8 @@ workflow to perform them.
 
 ### Unreleased
 
+### 2.4.1 (2026-11-20)
+
 - (o0shojo0o) Store one editable rating per icon and PixelIt device UUID and expose community averages.
 - (o0shojo0o) Create all required tables automatically in an empty database.
 - (o0shojo0o) Publish tested API releases and Docker images from version tags.
