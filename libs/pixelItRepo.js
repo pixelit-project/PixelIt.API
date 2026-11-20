@@ -349,7 +349,7 @@ async function getIconRatings(uuid, iconId) {
 }
 
 async function rateIcon(iconId, uuid, stars) {
-    // A duplicate submission keeps the original rating, even on concurrent writes or retries.
+    // The composite primary key keeps one vote when a device updates its rating.
     await connection.execute(`
         INSERT INTO pixel_it_icon_ratings (icon_id, voter_uuid, stars)
         SELECT bitmap.id, UNHEX(?), ?
@@ -358,8 +358,8 @@ async function rateIcon(iconId, uuid, stars) {
             SELECT 1 FROM pixel_it_reports report
             WHERE report.icon_id = bitmap.id AND report.status = 'approved'
         )
-        ON DUPLICATE KEY UPDATE stars = pixel_it_icon_ratings.stars
-    `, [uuid, stars, iconId]);
+        ON DUPLICATE KEY UPDATE stars = ?
+    `, [uuid, stars, iconId, stars]);
     const [rating] = await getIconRatings(uuid, iconId);
     return rating?.myRating ? rating : null;
 }

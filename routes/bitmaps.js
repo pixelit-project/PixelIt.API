@@ -222,7 +222,12 @@ async function rateIcon(req, res) {
         log.warn('Icon rating: icon {iconId} unavailable for {sourceIP}', { iconId, sourceIP });
         return res.status(404).json({ error: 'Icon not found' });
     }
-    log.info('Icon rating recorded or already present for icon {iconId} from {sourceIP}', { iconId, sourceIP });
+    log.info('Icon rating saved for icon {iconId}: {stars} stars, {voteCount} total votes, from {sourceIP}', {
+        iconId,
+        stars,
+        voteCount: rating.count,
+        sourceIP,
+    });
     res.json(rating);
 }
 

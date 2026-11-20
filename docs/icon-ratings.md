@@ -2,8 +2,9 @@
 
 The API creates the rating table during startup. A positive icon ID and an
 integer from 1 through 5 identify a vote. Each icon and PixelIt device UUID pair
-has one permanent vote. A retry returns the original vote and the current
-aggregate, even if the retry sends a different star count. Hidden and missing
+has one vote. Submitting a new star count replaces that device’s vote and
+returns the current aggregate. Repeating a submission with the same star count
+leaves the total unchanged. Hidden and missing
 icons cannot receive votes. Hidden icons are excluded from the ratings list.
 
 - `GET /api/icon-ratings` returns an array with one entry per rated visible icon.
@@ -22,3 +23,7 @@ browsers. Telemetry uploads can stay disabled. The UUID identifies the device
 for deduplication and is supplied by the client. Voting requests have a dedicated per-client-IP
 limit of 1,000 requests per 15 minutes by default. Rating reads use the global
 API limit.
+
+
+Successful submissions log the icon ID, submitted stars, total vote count and
+client IP. The device UUID is excluded from the rating log.

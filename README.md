@@ -222,12 +222,27 @@ at startup; see [Telegram setup](docs/telegram.md).
 [Icon ratings endpoints](docs/icon-ratings.md) provide a community average and
 one vote per icon and PixelIt device UUID.
 
+## Releases
+
+Push an unprefixed SemVer tag on the current default-branch tip, such as
+`2.5.0` or `2.5.0-beta.1`, to run the release workflow. Stable releases move
+the **Unreleased** notes into a dated version section and update the branch and
+tag together. Prereleases use the same notes without moving them. The workflow
+runs tests and smoke-tests the production container before publishing the
+versioned GHCR image and GitHub release. Stable tags also update `latest`.
+
+The Actions token needs permission to update the default branch and release
+tag, publish a GitHub release, and write to the GHCR package linked to this
+repository. Any repository rules affecting these operations must allow the
+workflow to perform them.
+
 ## Changelog
 
 ### Unreleased
 
-- (o0shojo0o) Store one rating per icon and PixelIt device UUID and expose community averages.
+- (o0shojo0o) Store one editable rating per icon and PixelIt device UUID and expose community averages.
 - (o0shojo0o) Create all required tables automatically in an empty database.
+- (o0shojo0o) Publish tested API releases and Docker images from version tags.
 
 ### 2.3.3 (2026-11-04)
 

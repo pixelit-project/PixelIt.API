@@ -30,17 +30,17 @@ test('read operations propagate database failures instead of returning empty suc
     ]) await assert.rejects(load(), error => error === failure);
 });
 
-test('ratings use a parameterized insert that preserves an existing vote and fetches the saved aggregate', async () => {
+test('ratings use a parameterized upsert that replaces an existing vote and fetches the saved aggregate', async () => {
     const uuid = 'a'.repeat(40);
     const calls = [];
     execute = async (sql, values) => {
         calls.push({ sql, values });
-        return sql.includes('GROUP BY') ? [[{ iconId: 1, average: '3.5000', count: '2', myRating: 5 }]] : [{}];
+        return sql.includes('GROUP BY') ? [[{ iconId: 1, average: '3.5000', count: '2', myRating: 1 }]] : [{}];
     };
-    assert.deepEqual(await repo.rateIcon(1, uuid, 1), { iconId: 1, average: 3.5, count: 2, myRating: 5 });
-    assert.match(calls[0].sql, /ON DUPLICATE KEY UPDATE stars = pixel_it_icon_ratings.stars/);
+    assert.deepEqual(await repo.rateIcon(1, uuid, 1), { iconId: 1, average: 3.5, count: 2, myRating: 1 });
+    assert.match(calls[0].sql, /ON DUPLICATE KEY UPDATE stars = \?/);
     assert.match(calls[0].sql, /NOT EXISTS/);
-    assert.deepEqual(calls[0].values, [uuid, 1, 1]);
+    assert.deepEqual(calls[0].values, [uuid, 1, 1, 1]);
     assert.deepEqual(calls[1].values, [uuid, 1]);
     assert.match(calls[1].sql, /AND ratings.icon_id = \?/);
     assert.match(calls[1].sql, /NOT EXISTS/);

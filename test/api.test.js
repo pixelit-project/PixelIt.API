@@ -7,7 +7,8 @@ function stub(moduleName, exports) {
 }
 const noop = () => {};
 const loggedErrors = [];
-stub('../libs/logger', { info: noop, warn: noop, error: (message, properties) => loggedErrors.push({ message, properties }) });
+const loggedInfo = [];
+stub('../libs/logger', { info: (message, properties) => loggedInfo.push({ message, properties }), warn: noop, error: (message, properties) => loggedErrors.push({ message, properties }) });
 let save = async () => {};
 let saves = 0;
 let invalidations = 0;
@@ -34,7 +35,7 @@ stub('../libs/pixelItRepo', {
     rateIcon: async (iconId, uuid, stars) => {
         read(null);
         if (iconId !== 1) return null;
-        if (!votes.has(uuid.toLowerCase())) votes.set(uuid.toLowerCase(), stars);
+        votes.set(uuid.toLowerCase(), stars);
         return testRating(uuid);
     },
     getUserMapData: async () => read([]),
@@ -109,7 +110,7 @@ test('write endpoints validate input, wait for persistence, and report failures'
     }
 });
 
-test('icon ratings validate submissions and return the original vote on retry', async () => {
+test('icon ratings validate, replace and log a device vote', async () => {
     const path = '/api/icon-ratings';
     const uuid = 'a'.repeat(40);
     const headers = { 'X-PixelIt-Rating-UUID': uuid };
@@ -126,12 +127,18 @@ test('icon ratings validate submissions and return the original vote on retry', 
     const firstVote = await request(path, { iconId: 1, stars: 5 }, headers);
     assert.equal(firstVote.status, 200);
     assert.deepEqual(JSON.parse(firstVote.text), { iconId: 1, average: 5, count: 1, myRating: 5 });
-    assert.deepEqual(await request(path, { iconId: 1, stars: 1 }, { 'X-PixelIt-Rating-UUID': uuid.toUpperCase() }), firstVote);
+    const update = await request(path, { iconId: 1, stars: 1 }, { 'X-PixelIt-Rating-UUID': uuid.toUpperCase() });
+    assert.equal(update.status, 200);
+    assert.deepEqual(JSON.parse(update.text), { iconId: 1, average: 1, count: 1, myRating: 1 });
+    assert.deepEqual(await request(path, { iconId: 1, stars: 1 }, headers), update);
+    const ratingLog = loggedInfo.at(-1);
+    assert.match(ratingLog.message, /Icon rating saved/);
+    assert.deepEqual(ratingLog.properties, { iconId: 1, stars: 1, voteCount: 1, sourceIP: '127.0.0.1' });
 
     const other = await request(path, { iconId: 1, stars: 2 }, { 'X-PixelIt-Rating-UUID': 'b'.repeat(40) });
-    assert.deepEqual(JSON.parse(other.text), { iconId: 1, average: 3.5, count: 2, myRating: 2 });
-    assert.deepEqual(JSON.parse((await request(path, undefined, headers)).text), [{ iconId: 1, average: 3.5, count: 2, myRating: 5 }]);
-    assert.deepEqual(JSON.parse((await request(path)).text), [{ iconId: 1, average: 3.5, count: 2, myRating: null }]);
+    assert.deepEqual(JSON.parse(other.text), { iconId: 1, average: 1.5, count: 2, myRating: 2 });
+    assert.deepEqual(JSON.parse((await request(path, undefined, headers)).text), [{ iconId: 1, average: 1.5, count: 2, myRating: 1 }]);
+    assert.deepEqual(JSON.parse((await request(path)).text), [{ iconId: 1, average: 1.5, count: 2, myRating: null }]);
 
     loggedErrors.length = 0;
     readFailure = new Error(uuid);
