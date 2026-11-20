@@ -226,6 +226,8 @@ one vote per icon and PixelIt device UUID.
 
 ### Unreleased
 
+### 2.4.0 (2026-11-21)
+
 - (o0shojo0o) Store one rating per icon and PixelIt device UUID and expose community averages.
 - (o0shojo0o) Create all required tables automatically in an empty database.
 
