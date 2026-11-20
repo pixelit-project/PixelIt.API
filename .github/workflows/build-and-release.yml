@@ -1,0 +1,110 @@
+name: Build, Release & Publish API
+
+on:
+  push:
+    tags: ['*.*.*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pixelit-api-releases
+  cancel-in-progress: false
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      commit: ${{ steps.prepare.outputs.commit }}
+      prerelease: ${{ steps.prepare.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Refuse to change an existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > /dev/null 2> "$RUNNER_TEMP/release-error"; then
+            echo '::error::This tag already has a release.'
+            exit 1
+          elif ! grep -q 'HTTP 404' "$RUNNER_TEMP/release-error"; then
+            cat "$RUNNER_TEMP/release-error" >&2
+            exit 1
+          fi
+      - name: Prepare release changelog
+        id: prepare
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: bash .github/prepare_tag_release.sh
+
+  release-api:
+    needs: prepare-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+      SOURCE_COMMIT: ${{ needs.prepare-release.outputs.commit }}
+      PRERELEASE: ${{ needs.prepare-release.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          ref: ${{ needs.prepare-release.outputs.commit }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm audit --omit=dev
+      - name: Build production image
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+          docker build --file dockerfile --tag "$image:$RELEASE_TAG"             --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"             --label "org.opencontainers.image.revision=$SOURCE_COMMIT"             --label "org.opencontainers.image.version=$RELEASE_TAG" .
+      - name: Smoke-test production image
+        run: >-
+          docker run --rm --network none
+          --mount "type=bind,src=${PWD}/scripts/container-smoke.js,dst=/tmp/container-smoke.js,readonly"
+          "$IMAGE:$RELEASE_TAG" node /tmp/container-smoke.js
+      - name: Sign in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Publish tested image and GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_TAG" --jq .sha)" != "$SOURCE_COMMIT" ]]; then
+            echo '::error::The release tag moved after the build was prepared.'
+            exit 1
+          fi
+
+          notes="$RUNNER_TEMP/release-notes.md"
+          python3 .github/release_changelog.py notes "$RELEASE_TAG" --output "$notes"
+          printf '\nDocker image: `%s:%s`\n' "$IMAGE" "$RELEASE_TAG" >> "$notes"
+          docker push "$IMAGE:$RELEASE_TAG"
+
+          args=(--verify-tag --notes-file "$notes" --title "$RELEASE_TAG")
+          if [[ "$PRERELEASE" == 'true' ]]; then
+            args+=(--prerelease --latest=false)
+          else
+            docker tag "$IMAGE:$RELEASE_TAG" "$IMAGE:latest"
+            docker push "$IMAGE:latest"
+          fi
+          gh release create "$RELEASE_TAG" "${args[@]}"
