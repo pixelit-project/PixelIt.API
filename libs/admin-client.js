@@ -4,9 +4,11 @@ const getElement = (id) => document.getElementById(id);
 const statusLabels = {
     pending: 'Pending',
     approved: 'Hidden',
+    blocked: 'Blocked',
     rejected: 'Rejected',
 };
 let reports = [];
+let reportCounts = {};
 let beforeReportId;
 let statusFilter = 'pending';
 let isLoading = false;
@@ -15,6 +17,81 @@ let currentView = 'reports';
 let statisticsLoading = false;
 let sessionGeneration = 0;
 const iconPreviews = new Map();
+const previewRequests = new Map();
+const queuedPreviews = new Map();
+let loadingPreviews = false;
+
+async function loadQueuedPreviews() {
+    if (loadingPreviews) {
+        return;
+    }
+    loadingPreviews = true;
+    while (queuedPreviews.size) {
+        const batch = [...queuedPreviews.entries()].slice(0, 8);
+        const ids = batch.map(([id]) => id);
+        for (const id of ids) {
+            queuedPreviews.delete(id);
+        }
+        try {
+            const icons = await requestAdmin('icons?ids=' + ids.join(','));
+            const byId = new Map(icons.map((icon) => [String(icon.id), icon]));
+            for (const [id, { resolve }] of batch) {
+                const icon = byId.get(String(id)) ?? null;
+                if (iconPreviews.size >= 50) {
+                    iconPreviews.delete(iconPreviews.keys().next().value);
+                }
+                iconPreviews.set(id, icon);
+                resolve(icon);
+            }
+        } catch (error) {
+            for (const [, { reject }] of batch) {
+                reject(error);
+            }
+        }
+    }
+    loadingPreviews = false;
+}
+
+function loadIconPreview(id) {
+    if (!previewRequests.has(id)) {
+        const request = new Promise((resolve, reject) => {
+            queuedPreviews.set(id, { resolve, reject });
+        });
+        previewRequests.set(id, request.finally(() => previewRequests.delete(id)));
+        queueMicrotask(loadQueuedPreviews);
+    }
+    return previewRequests.get(id);
+}
+const previewObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+        if (entry.isIntersecting && entry.target.isConnected) {
+            previewObserver.unobserve(entry.target);
+            entry.target.click();
+        }
+    }
+});
+const animationDrawers = new WeakMap();
+const visibleAnimations = new Set();
+const animationObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+        if (entry.isIntersecting && entry.target.isConnected) {
+            visibleAnimations.add(entry.target);
+        } else {
+            visibleAnimations.delete(entry.target);
+        }
+    }
+});
+setInterval(() => {
+    if (document.hidden) {
+        return;
+    }
+    const dialog = getElement('preview-dialog');
+    for (const canvas of visibleAnimations) {
+        if (!dialog.open || dialog.contains(canvas)) {
+            animationDrawers.get(canvas)();
+        }
+    }
+}, 250);
 
 function showMessage(text, error = false) {
     getElement('message').textContent = text;
@@ -98,11 +175,15 @@ function createIconCanvas(icon) {
     ) {
         throw new Error('Preview unavailable.');
     }
-    const pixels = JSON.parse(icon.pixels.slice(0, icon.pixels.indexOf(']') + 1));
+    const source = icon.pixels.trim().replace(/,$/, '');
+    const frames = JSON.parse('[' + source + ']');
     if (
-        !Array.isArray(pixels) ||
-        pixels.length !== icon.sizeX * icon.sizeY ||
-        pixels.some((value) => !Number.isInteger(value) || value < 0 || value > 65535)
+        !frames.length ||
+        frames.some((pixels) =>
+            !Array.isArray(pixels) ||
+            pixels.length !== icon.sizeX * icon.sizeY ||
+            pixels.some((value) => !Number.isInteger(value) || value < 0 || value > 65535)
+        )
     ) {
         throw new Error('Preview unavailable.');
     }
@@ -110,18 +191,40 @@ function createIconCanvas(icon) {
     canvasElement.width = icon.sizeX;
     canvasElement.height = icon.sizeY;
     canvasElement.setAttribute('role', 'img');
-    canvasElement.setAttribute('aria-label', 'Icon preview, first frame');
+    canvasElement.setAttribute('aria-label', 'Icon preview');
     const context = canvasElement.getContext('2d');
     const image = context.createImageData(canvasElement.width, canvasElement.height);
-    pixels.forEach((value, i) => {
-        image.data[i * 4] = Math.round((((value >> 11) & 31) * 255) / 31);
-        image.data[i * 4 + 1] = Math.round((((value >> 5) & 63) * 255) / 63);
-        image.data[i * 4 + 2] = Math.round(((value & 31) * 255) / 31);
-        image.data[i * 4 + 3] = 255;
-    });
-    context.putImageData(image, 0, 0);
+    let frameIndex = 0;
+    function drawFrame() {
+        frames[frameIndex].forEach((value, index) => {
+            image.data[index * 4] = Math.round((((value >> 11) & 31) * 255) / 31);
+            image.data[index * 4 + 1] = Math.round((((value >> 5) & 63) * 255) / 63);
+            image.data[index * 4 + 2] = Math.round(((value & 31) * 255) / 31);
+            image.data[index * 4 + 3] = 255;
+        });
+        context.putImageData(image, 0, 0);
+        frameIndex = (frameIndex + 1) % frames.length;
+    }
+    drawFrame();
+    if (icon.animated && frames.length > 1) {
+        animationDrawers.set(canvasElement, drawFrame);
+        animationObserver.observe(canvasElement);
+    }
     return canvasElement;
 }
+
+function stopPreviewAnimations(container) {
+    for (const canvas of container.querySelectorAll('canvas')) {
+        animationObserver.unobserve(canvas);
+        visibleAnimations.delete(canvas);
+    }
+}
+
+getElement('preview-dialog').addEventListener('close', () => {
+    const preview = getElement('large-preview');
+    stopPreviewAnimations(preview);
+    preview.replaceChildren();
+});
 
 function confirmAction(report, action) {
     const options = {
@@ -131,6 +234,16 @@ function confirmAction(report, action) {
                 (report.name || 'Icon #' + report.icon_id) +
                 '” will be hidden from the public gallery. You can restore it later.',
             'Hide',
+        ],
+        block: [
+            'Block this icon?',
+            'The icon will become unavailable through the public API.',
+            'Block',
+        ],
+        unblock: [
+            'Unblock this icon?',
+            'Direct access will be restored. The icon will stay hidden from the gallery.',
+            'Unblock',
         ],
         reject: [
             'Reject this report?',
@@ -143,7 +256,10 @@ function confirmAction(report, action) {
             'Restore',
         ],
     };
-    const [title, text, label] = options[action];
+    return confirmDialog(...options[action]);
+}
+
+function confirmDialog(title, text, label) {
     getElement('confirm-title').textContent = title;
     getElement('confirm-text').textContent = text;
     getElement('confirm-action').textContent = label;
@@ -165,15 +281,19 @@ async function submitDecision(report, action) {
     renderReports();
     try {
         await requestAdmin('reports/' + report.id + '/' + action, {});
-        report.status = action === 'approve' ? 'approved' : 'rejected';
+        const decisions = {
+            approve: ['approved', 'Icon hidden from the gallery.'],
+            reject: ['rejected', 'Report rejected.'],
+            restore: ['rejected', 'Icon restored to the gallery.'],
+            block: ['blocked', 'Icon blocked from the public API.'],
+            unblock: ['approved', 'Icon unblocked. It is still hidden from the gallery.'],
+        };
+        const [status, message] = decisions[action];
+        reportCounts[report.status]--;
+        reportCounts[status]++;
+        report.status = status;
         report.processed_at = new Date().toISOString();
-        showMessage(
-            action === 'approve'
-                ? 'Icon hidden. You can restore it using the Hidden filter.'
-                : action === 'restore'
-                ? 'Icon restored.'
-                : 'Report rejected.'
-        );
+        showMessage(message);
     } catch (error) {
         showMessage(error.message, true);
     } finally {
@@ -203,27 +323,31 @@ function createReportCard(report) {
         } catch {
             preview.textContent = 'No preview';
         }
+    } else if (!report.name) {
+        preview.textContent = 'No preview';
     } else {
-        const button = createElement('button', '', '▦ Preview');
-        button.setAttribute('aria-label', 'Preview for ' + (report.name || report.icon_id));
+        const button = createElement('button', 'preview-load', 'Load preview');
         button.onclick = async () => {
+            previewObserver.unobserve(button);
             button.disabled = true;
             button.textContent = 'Loading…';
             try {
-                const icon = await requestAdmin('icons/' + report.icon_id);
-                const drawing = createPreviewButton(icon, report);
-                if (iconPreviews.size >= 200) {
-                    iconPreviews.delete(iconPreviews.keys().next().value);
+                const icon = await loadIconPreview(report.icon_id);
+                if (preview.isConnected) {
+                    if (icon) {
+                        preview.replaceChildren(createPreviewButton(icon, report));
+                    } else {
+                        preview.textContent = 'No preview';
+                    }
                 }
-                iconPreviews.set(report.icon_id, icon);
-                preview.replaceChildren(drawing);
             } catch (error) {
                 button.disabled = false;
-                button.textContent = 'Try again';
-                showMessage(error.message, true);
+                button.textContent = 'Retry preview';
+                button.title = error.message;
             }
         };
         preview.append(button);
+        previewObserver.observe(button);
     }
     article.append(preview);
     const body = createElement('div', 'report-body');
@@ -263,10 +387,13 @@ function createReportCard(report) {
         report.status === 'pending'
             ? [
                   ['reject', 'Reject', 'secondary'],
-                  ['approve', 'Hide', 'danger'],
+                  ['approve', 'Hide', 'secondary'],
+                  ['block', 'Block', 'danger'],
               ]
             : report.status === 'approved'
-            ? [['restore', 'Restore', 'secondary']]
+            ? [['restore', 'Restore', 'secondary'], ['block', 'Block', 'danger']]
+            : report.status === 'blocked'
+            ? [['unblock', 'Unblock', 'secondary']]
             : [];
     for (const [action, label, style] of available) {
         const button = createElement('button', style, label);
@@ -280,9 +407,8 @@ function createReportCard(report) {
 }
 
 function renderReports() {
-    for (const status of ['all', 'pending', 'approved', 'rejected']) {
-        getElement('count-' + status).textContent =
-            status === 'all' ? reports.length : reports.filter((report) => report.status === status).length;
+    for (const status of ['all', 'pending', 'approved', 'blocked', 'rejected']) {
+        getElement('count-' + status).textContent = reportCounts[status] ?? 0;
     }
     const search = getElement('search').value.trim().toLocaleLowerCase('en');
     const selected = reports
@@ -298,7 +424,10 @@ function renderReports() {
         .sort((leftReport, rightReport) =>
             getElement('sort').value === 'old' ? leftReport.id - rightReport.id : rightReport.id - leftReport.id
         );
-    getElement('reports').replaceChildren(...selected.map(createReportCard));
+    previewObserver.disconnect();
+    const container = getElement('reports');
+    stopPreviewAnimations(container);
+    container.replaceChildren(...selected.map(createReportCard));
     getElement('empty').hidden = selected.length > 0;
     getElement('result-count').textContent = selected.length + ' ' + (selected.length === 1 ? 'Report' : 'Reports');
     for (const button of document.querySelectorAll('[data-filter]')) {
@@ -315,7 +444,9 @@ async function loadReports(reset = true) {
     getElement('more').disabled = true;
     getElement('reports').setAttribute('aria-busy', 'true');
     try {
-        const result = await requestAdmin('reports' + (!reset && beforeReportId ? '?before=' + beforeReportId : ''));
+        const cursor = !reset && beforeReportId ? '&before=' + beforeReportId : '';
+        const { reports: result, counts } = await requestAdmin('reports?includeCounts=1' + cursor);
+        reportCounts = counts;
         reports = reset ? result : [...new Map([...reports, ...result].map((report) => [report.id, report])).values()];
         beforeReportId = result.at(-1)?.id;
         getElement('more').hidden = result.length < 50;
@@ -383,6 +514,63 @@ function renderDistribution(id, entries, total) {
     }
 }
 
+let iconDownloadRequest = 0;
+
+function renderDownloadCounts(containerId, rows) {
+    const container = getElement(containerId);
+    if (!rows.length) {
+        container.replaceChildren(createElement('p', '', 'No downloads recorded.'));
+        return;
+    }
+    const formatter = new Intl.NumberFormat('en-GB');
+    const maxCount = Math.max(...rows.map(({ count }) => count));
+    container.replaceChildren(...rows.map(({ label, count }) => {
+        const row = createElement('div', 'distribution-row');
+        const heading = createElement('div', 'distribution-heading');
+        heading.append(createElement('span', '', label), createElement('strong', '', formatter.format(count)));
+        const meter = createElement('meter');
+        meter.max = maxCount || 1;
+        meter.value = count;
+        meter.setAttribute('aria-label', label + ' · ' + formatter.format(count) + ' downloads');
+        row.append(heading, meter);
+        return row;
+    }));
+}
+
+async function loadIconDownloads() {
+    const request = ++iconDownloadRequest;
+    const days = getElement('icon-download-days').value;
+    const message = getElement('icon-download-message');
+    message.textContent = 'Loading icon downloads…';
+    getElement('icon-download-daily').replaceChildren();
+    getElement('icon-download-top').replaceChildren();
+    try {
+        const data = await requestAdmin('statistics/icons?days=' + days);
+        if (request !== iconDownloadRequest) {
+            return;
+        }
+        const counts = new Map(data.daily.map(({ day, count }) => [day, count]));
+        const today = new Date(data.through + 'T00:00:00Z');
+        const daily = Array.from({ length: data.days }, (_, index) => {
+            const date = new Date(today);
+            date.setUTCDate(date.getUTCDate() - data.days + index + 1);
+            const day = date.toISOString().slice(0, 10);
+            return { label: day, count: counts.get(day) ?? 0 };
+        });
+        const total = daily.reduce((sum, { count }) => sum + count, 0);
+        message.textContent = new Intl.NumberFormat('en-GB').format(total) + ' downloads';
+        renderDownloadCounts('icon-download-daily', daily);
+        renderDownloadCounts('icon-download-top', data.top.map(({ iconId, name, count }) => ({
+            label: name ? name + ' · #' + iconId : '#' + iconId,
+            count,
+        })));
+    } catch (error) {
+        if (request === iconDownloadRequest) {
+            message.textContent = error.message;
+        }
+    }
+}
+
 async function loadStatistics() {
     if (statisticsLoading) {
         return;
@@ -431,12 +619,16 @@ function showView(view) {
     getElement('moderation-audit-tab').setAttribute('aria-pressed', String(view === 'moderation-audit'));
     getElement('admin-audit-tab').setAttribute('aria-pressed', String(view === 'admin-audit'));
     getElement('notifications-view').hidden = view !== 'notifications';
+    getElement('backup-view').hidden = view !== 'backup';
+    getElement('backup-tab').setAttribute('aria-pressed', String(view === 'backup'));
+    getElement('refresh').hidden = view === 'backup';
     getElement('notifications-tab').setAttribute('aria-pressed', String(view === 'notifications'));
     getElement('moderators-tab').setAttribute('aria-pressed', String(view === 'moderators'));
     getElement('statistics-view').hidden = !statisticsVisible;
     getElement('reports-tab').setAttribute('aria-pressed', String(view === 'reports'));
     getElement('statistics-tab').setAttribute('aria-pressed', String(statisticsVisible));
     const titles = {
+        backup: ['Backup & Restore', 'Export or restore the API database.'],
         reports: ['Icon reports', 'Review reports and manage icons.'],
         statistics: ['Statistics', 'An overview of device activity and distributions.'],
         moderators: ['Moderators', 'Add moderators and manage access.'],
@@ -458,16 +650,21 @@ getElement('refresh').onclick = function refreshCurrentView() {
         'admin-audit': loadAudit,
         notifications: loadTelegramStatus,
         moderators: loadModerators,
-        statistics: loadStatistics,
+        statistics: () => {
+            loadStatistics();
+            loadIconDownloads();
+        },
         reports: loadReports,
     };
-    loaders[currentView]();
+    loaders[currentView]?.();
 };
 getElement('reports-tab').onclick = () => showView('reports');
 getElement('statistics-tab').onclick = () => {
     showView('statistics');
     loadStatistics();
+    loadIconDownloads();
 };
+getElement('icon-download-days').onchange = loadIconDownloads;
 getElement('more').onclick = () => loadReports(false);
 getElement('search').oninput = renderReports;
 getElement('sort').onchange = renderReports;
@@ -543,7 +740,7 @@ async function loadAudit(reset = true) {
     getElement('audit-heading').textContent = kind === 'admin' ? 'Admin log' : 'Moderation log';
     getElement('audit-description').textContent = kind === 'admin'
         ? 'Moderator additions and removals. Up to 50 entries per page.'
-        : 'Icons hidden or restored and reports rejected by moderators and admins. Up to 50 entries per page.';
+        : 'Icon visibility changes and rejected reports. Up to 50 entries per page.';
     getElement('audit-list').replaceChildren(createElement('p', '', 'Loading audit log…'));
     getElement('audit-more').hidden = true;
     try {
@@ -555,6 +752,8 @@ async function loadAudit(reset = true) {
         auditCursor = entries.at(-1)?.id;
         const labels = {
             approve: 'Icon hidden',
+            block: 'Icon blocked',
+            unblock: 'Icon unblocked',
             reject: 'Report rejected',
             restore: 'Icon restored',
             moderator_added: 'Moderator added',
@@ -655,11 +854,67 @@ getElement('telegram-disconnect').onclick = async () => {
     }
 };
 
+getElement('backup-tab').onclick = () => {
+    showMessage('');
+    showView('backup');
+};
+getElement('backup-logout').onclick = logout;
+
+function setBackupBusy(busy) {
+    getElement('backup-download').toggleAttribute('inert', busy);
+    getElement('backup-restore').disabled = busy;
+    getElement('backup-file').disabled = busy;
+}
+
+async function uploadBackup(file) {
+    const response = await fetch('/api/admin/restore', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/octet-stream',
+            'X-PixelIt-Confirm-Restore': 'replace',
+        },
+        body: file,
+    });
+    if (response.status === 401) {
+        showLogin();
+    }
+    if (!response.ok) {
+        throw new Error(await response.text());
+    }
+}
+
+getElement('backup-restore-form').onsubmit = async (event) => {
+    event.preventDefault();
+    const input = getElement('backup-file');
+    const file = input.files[0];
+    if (!file || !await confirmDialog(
+        'Replace the API database?',
+        'Restore “' + file.name + '” and replace the current API database contents.',
+        'Restore database'
+    )) {
+        return;
+    }
+    setBackupBusy(true);
+    showMessage('Restoring the backup…');
+    try {
+        await uploadBackup(file);
+        input.value = '';
+        iconPreviews.clear();
+        await loadReports();
+        showMessage('Database restored.');
+    } catch (error) {
+        showMessage(error.message, true);
+    } finally {
+        setBackupBusy(false);
+    }
+};
+
 async function initializeDashboard() {
     try {
         const identity = await requestAdmin('me');
         getElement('notifications-tab').hidden = !identity.id;
         getElement('admin-audit-tab').hidden = identity.role !== 'admin';
+        getElement('backup-tab').hidden = identity.role !== 'admin';
         getElement('identity').textContent = identity.login + ' · ' + (identity.role === 'admin' ? 'Admin' : 'Moderator');
         document.querySelector('.sidebar-footer .avatar').textContent = identity.login.slice(0, 1).toUpperCase();
         getElement('moderators-tab').hidden = identity.role !== 'admin' || !identity.id;

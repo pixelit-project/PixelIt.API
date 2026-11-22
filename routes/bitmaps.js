@@ -69,6 +69,9 @@ async function getBitmapById(req, res) {
         uuid: uuid,
     });
     res.send(bmp);
+    if (res.statusCode === 200) {
+        await recordIconDownload(bmp.id);
+    }
 }
 
 async function getBitmapByIdV2(req, res) {
@@ -124,6 +127,17 @@ async function getBitmapByIdV2(req, res) {
         uuid: uuid,
     });
     res.send(bmp);
+    if (res.statusCode === 200) {
+        await recordIconDownload(bmp.id);
+    }
+}
+
+async function recordIconDownload(iconId) {
+    try {
+        await repo.recordIconDownload(iconId);
+    } catch (error) {
+        log.warn('Icon download counter: update failed for icon {iconId}.', { iconId });
+    }
 }
 
 async function getNewestBitmap(req, res) {

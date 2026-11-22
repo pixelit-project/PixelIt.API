@@ -39,6 +39,10 @@
                     <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0112 0v3M17 5a3 3 0 010 6m1 4a5 5 0 013 5"/></svg>
                     <span>Moderators</span>
                 </button>
+                <button id="backup-tab" class="nav-item" aria-pressed="false" hidden>
+                    <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 15v5h16v-5"/></svg>
+                    <span>Backup &amp; Restore</span>
+                </button>
             </nav>
             <div class="sidebar-footer">
                 <span class="avatar">A</span>
@@ -70,9 +74,8 @@
                 <div id="moderation-view">
                     <div class="stats">
                         <div class="stat">
-                            <span>Loaded reports</span>
+                            <span>Total reports</span>
                             <strong id="count-all">0</strong>
-                            <small>In this view</small>
                         </div>
                         <div class="stat">
                             <span>
@@ -91,12 +94,17 @@
                             <small>Can be restored anytime</small>
                         </div>
                         <div class="stat">
+                            <span><i class="dot blocked"></i>Blocked</span>
+                            <strong id="count-blocked">0</strong>
+                            <small>Unavailable through the public API</small>
+                        </div>
+                        <div class="stat">
                             <span>
                                 <i class="dot rejected"></i>
                                 Rejected
                             </span>
                             <strong id="count-rejected">0</strong>
-                            <small>Icons remain visible</small>
+                            <small>Reports dismissed</small>
                         </div>
                     </div>
                     <div class="queue-heading">
@@ -111,6 +119,7 @@
                             <button data-filter="all" aria-pressed="false">All</button>
                             <button data-filter="pending" aria-pressed="true">Pending</button>
                             <button data-filter="approved" aria-pressed="false">Hidden</button>
+                            <button data-filter="blocked" aria-pressed="false">Blocked</button>
                             <button data-filter="rejected" aria-pressed="false">Rejected</button>
                         </div>
                         <div class="search-tools">
@@ -128,7 +137,7 @@
                     </div>
                     <div class="list-meta">
                         <span id="result-count"></span>
-                        <span>Search and counts apply to loaded reports.</span>
+                        <span>Search applies to loaded reports.</span>
                     </div>
                     <div id="reports" class="reports"></div>
                     <div id="empty" class="empty" hidden>
@@ -231,12 +240,49 @@
                             Telemetry reflects recent reports, not live connections. Time windows overlap.
                         </span>
                     </footer>
+                    <section class="telemetry-card icon-downloads" aria-labelledby="icon-download-heading">
+                        <div class="queue-heading">
+                            <div>
+                                <h2 id="icon-download-heading">Icon downloads</h2>
+                                <p>Successful downloads by icon ID. Dates use UTC.</p>
+                            </div>
+                            <select id="icon-download-days" aria-label="Icon download period">
+                                <option value="7">Last 7 days</option>
+                                <option value="30" selected>Last 30 days</option>
+                            </select>
+                        </div>
+                        <p id="icon-download-message" role="status"></p>
+                        <div class="telemetry-grid">
+                            <article>
+                                <h3>Downloads by day</h3>
+                                <div id="icon-download-daily"></div>
+                            </article>
+                            <article>
+                                <h3>Top 20 icons</h3>
+                                <div id="icon-download-top"></div>
+                            </article>
+                        </div>
+                    </section>
+                </div>
+                <div id="backup-view" hidden>
+                    <div class="telemetry-card">
+                        <h2>Download a backup</h2>
+                        <p>Export the API database, including icons, reports, ratings, telemetry and moderator data. Store the file securely.</p>
+                        <a id="backup-download" href="/api/admin/backup" download class="primary">Download backup</a>
+                    </div>
+                    <form id="backup-restore-form" class="telemetry-card backup-restore">
+                        <h2>Restore from a backup</h2>
+                        <p>Restoring replaces the current API database contents. Download a current backup first.</p>
+                        <label for="backup-file">PixelIt API backup file</label>
+                        <input id="backup-file" name="backup" type="file" accept=".gz,.json,application/gzip,application/json" required>
+                        <button id="backup-restore" type="submit" class="danger">Restore database</button>
+                    </form>
+                    <button id="backup-logout" type="button" class="quiet">Sign out ↗</button>
                 </div>
             </section>
         </main>
         <dialog id="confirm-dialog">
             <form method="dialog">
-                <span class="eyebrow">MODERATION</span>
                 <h2 id="confirm-title"></h2>
                 <p id="confirm-text"></p>
                 <div class="dialog-actions">
@@ -252,7 +298,7 @@
                     <button value="close" class="secondary" aria-label="Close preview">✕</button>
                 </div>
                 <div id="large-preview"></div>
-                <p>First frame · Original RGB565 colors</p>
+                <p>Original RGB565 colors</p>
             </form>
         </dialog>
         <script src="/admin/app.js" defer></script>

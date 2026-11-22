@@ -45,3 +45,25 @@ test('ratings use a parameterized upsert that replaces an existing vote and fetc
     assert.match(calls[1].sql, /AND ratings.icon_id = \?/);
     assert.match(calls[1].sql, /NOT EXISTS/);
 });
+
+test('only the catalog excludes hidden bitmaps, while all public bitmap and rating reads exclude blocked icons', async () => {
+    const calls = [];
+    query = async (sql) => {
+        calls.push(sql);
+        return [[]];
+    };
+    execute = query;
+    await repo.getBMPAll();
+    assert.match(calls.shift(), /r\.status IN \('approved', 'blocked'\)/);
+    for (const load of [
+        () => repo.getBMPByID('1'),
+        () => repo.getBMPByID_v2('1'),
+        repo.getBMPNewst,
+        () => repo.getIconRatings(null),
+    ]) {
+        await load();
+        const sql = calls.shift();
+        assert.match(sql, /\.status = 'blocked'/);
+        assert.doesNotMatch(sql, /'approved'/);
+    }
+});

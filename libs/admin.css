@@ -34,7 +34,8 @@ input,
 select {
     -webkit-tap-highlight-color: transparent;
 }
-button {
+button,
+a:where(#backup-download) {
     cursor: pointer;
     border: 1px solid transparent;
     border-radius: 9px;
@@ -254,7 +255,7 @@ p {
 }
 .stats {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 16px;
     margin-bottom: 36px;
 }
@@ -1133,4 +1134,36 @@ input::placeholder {
     *, *::before, *::after {
         transition: none !important;
     }
+}
+
+.dot.blocked {
+    background: #f87171;
+}
+.badge.blocked {
+    color: #fca5a5;
+}
+
+.backup-restore {
+    margin-block: 16px;
+}
+.backup-restore label,
+.backup-restore input {
+    display: block;
+    margin-bottom: 12px;
+}
+.backup-restore input {
+    max-width: 100%;
+}
+
+#backup-download {
+    display: inline-block;
+    text-decoration: none;
+}
+
+.icon-downloads {
+    margin-top: 24px;
+}
+
+.icon-downloads .telemetry-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
 }

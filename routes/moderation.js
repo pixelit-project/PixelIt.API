@@ -1,6 +1,11 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { mkdtemp, rm, stat } = require('node:fs/promises');
+const { tmpdir } = require('node:os');
+const { pipeline } = require('node:stream/promises');
+const { createGzip } = require('node:zlib');
+const backup = require('../libs/backupRepo');
 const log = require('../libs/logger');
 const tools = require('../libs/tools');
 const createTelegramNotifications = require('../libs/telegramNotifications');
@@ -24,6 +29,7 @@ function registerModerationRoutes(
     const origin = process.env.ADMIN_ORIGIN || '';
     const credentials = initializeCredentials();
     let statisticsRequest;
+    let backupInProgress = false;
 
     async function initializeCredentials() {
         try {
@@ -240,6 +246,21 @@ function registerModerationRoutes(
         }
     }
 
+    async function getIconPreviews(req, res, next) {
+        const ids = typeof req.query.ids === 'string' ? req.query.ids.split(',').map(Number) : [];
+        if (!ids.length || ids.length > 8 || ids.some((id) => !Number.isSafeInteger(id) || id < 1)) {
+            log.warn('AdminIconPreviews: invalid icon IDs.', getRequestContext(req));
+            return res.sendStatus(400);
+        }
+        try {
+            const icons = await repo.previews([...new Set(ids)]);
+            log.info('AdminIconPreviews: {count} previews delivered.', { ...getRequestContext(req), count: icons.length });
+            res.json(icons);
+        } catch (error) {
+            handleRequestError(error, req, next, 'AdminIconPreviews');
+        }
+    }
+
     async function getReports(req, res, next) {
         const before = req.query.before === undefined ? Number.MAX_SAFE_INTEGER : Number(req.query.before);
         if (!Number.isSafeInteger(before) || before < 1) {
@@ -250,6 +271,9 @@ function registerModerationRoutes(
         try {
             const reports = await repo.list(before);
             log.info('AdminReports: {count} reports delivered.', { ...getRequestContext(req), count: reports.length });
+            if (req.query.includeCounts === '1') {
+                return res.json({ reports, counts: await repo.reportCounts() });
+            }
             res.json(reports);
         } catch (error) {
             handleRequestError(error, req, next, 'AdminReports');
@@ -258,9 +282,12 @@ function registerModerationRoutes(
 
     function loadStatistics() {
         if (!statisticsRequest) {
-            statisticsRequest = statisticsRepo.getAdminStatistics().finally(() => {
-                statisticsRequest = null;
+            const request = statisticsRepo.getAdminStatistics().finally(() => {
+                if (statisticsRequest === request) {
+                    statisticsRequest = null;
+                }
             });
+            statisticsRequest = request;
         }
         return statisticsRequest;
     }
@@ -278,10 +305,23 @@ function registerModerationRoutes(
         }
     }
 
+    async function getIconDownloads(req, res, next) {
+        const days = req.query.days ?? '30';
+        if (days !== '7' && days !== '30') {
+            return res.sendStatus(400);
+        }
+        try {
+            const result = await cache.getOrSet(`AdminIconDownloads_${days}`, () => statisticsRepo.getIconDownloads(Number(days)), 60);
+            res.json(result);
+        } catch (error) {
+            handleRequestError(error, req, next, 'AdminIconDownloads');
+        }
+    }
+
     async function decideReport(req, res, next) {
         const reportId = Number(req.params.id);
         const action = req.params.action;
-        const validAction = ['approve', 'reject', 'restore'].includes(action);
+        const validAction = ['approve', 'reject', 'restore', 'block', 'unblock'].includes(action);
         if (!Number.isSafeInteger(reportId) || reportId < 1 || !validAction) {
             log.warn('AdminDecision: invalid report ID or action.', getRequestContext(req));
             res.sendStatus(400);
@@ -382,11 +422,92 @@ function registerModerationRoutes(
 
     function requireOwner(req, res, next) {
         if (req.admin.role !== 'admin') {
-            log.warn('ModeratorManagement: access denied.', { ...getRequestContext(req), actor: req.admin.actor });
+            log.warn('Admin-only request denied.', { ...getRequestContext(req), actor: req.admin.actor });
             res.sendStatus(403);
             return;
         }
         next();
+    }
+
+    async function runBackupOperation(req, res, next, operation, callback) {
+        if (backupInProgress) {
+            log.warn('{operation}: another backup operation is running.', { ...getRequestContext(req), operation });
+            return res.status(409).send('Another backup operation is running');
+        }
+        backupInProgress = true;
+        try {
+            await callback();
+        } catch (error) {
+            const errors = {
+                INVALID_BACKUP: [400, 'Invalid or incompatible backup file'],
+                BACKUP_RECORD_TOO_LARGE: [413, 'A single database record exceeds 64 MiB'],
+                ENOSPC: [507, 'Insufficient disk space for the backup'],
+                UNSUPPORTED_BACKUP_SCHEMA: [409, 'Database schema does not support this operation'],
+            };
+            const errorCode = error.code || error.type;
+            if (!res.headersSent && !res.destroyed && Object.hasOwn(errors, errorCode)) {
+                const [status, message] = errors[errorCode];
+                log.warn('{operation}: rejected ({errorCode}).', { ...getRequestContext(req), operation, errorCode });
+                res.status(status).send(message);
+            } else {
+                handleRequestError(error, req, next, operation);
+            }
+        } finally {
+            backupInProgress = false;
+        }
+    }
+
+    function downloadBackup(req, res, next) {
+        return runBackupOperation(req, res, next, 'AdminBackup', async () => {
+            const date = new Date().toISOString().slice(0, 10);
+            res.set('X-Accel-Buffering', 'no');
+            res.attachment(`pixelit-api-backup-${date}.jsonl.gz`);
+            await pipeline(backup.createBackup(), createGzip(), res);
+            log.info('AdminBackup: {actor} completed a database export.', {
+                ...getRequestContext(req), actor: req.admin.actor,
+            });
+        });
+    }
+
+    function uploadBackup(req, res, next) {
+        return runBackupOperation(req, res, next, 'AdminRestore', async () => {
+            if (req.get('X-PixelIt-Confirm-Restore') !== 'replace') {
+                log.warn('AdminRestore: missing confirmation.', getRequestContext(req));
+                return res.status(400).send('Restore confirmation required');
+            }
+            const encoding = req.get('Content-Encoding');
+            if (!req.is('application/octet-stream') || (encoding && encoding !== 'identity')) {
+                return res.status(415).send('Upload the original backup file');
+            }
+            const directory = await mkdtemp(path.join(tmpdir(), 'pixelit-api-restore-'));
+            const file = path.join(directory, 'backup');
+            let bytes;
+            try {
+                await pipeline(req.iterator({ destroyOnReturn: false }), fs.createWriteStream(file, { flags: 'wx', mode: 0o600 }));
+                bytes = (await stat(file)).size;
+                if (!bytes) {
+                    return res.status(400).send('Select a backup file');
+                }
+                await backup.restoreBackup(file);
+            } finally {
+                await rm(directory, { recursive: true, force: true }).catch((error) => {
+                    log.error('AdminRestore: temporary file cleanup failed ({errorCode}).', { errorCode: getErrorCode(error) });
+                });
+            }
+            cache.invalidateAll();
+            statisticsRequest = null;
+            const sessionToken = getSessionToken(req);
+            for (const token of sessions.keys()) {
+                if (token !== sessionToken) {
+                    sessions.delete(token);
+                }
+            }
+            pendingLogins.clear();
+            log.info('AdminRestore: {actor} restored {bytes} bytes.', {
+                ...getRequestContext(req), actor: req.admin.actor, bytes,
+            });
+            res.sendStatus(204);
+        });
     }
 
     async function getModerators(req, res, next) {
@@ -561,10 +682,14 @@ function registerModerationRoutes(
     app.post('/api/admin/telegram/disconnect', adminActionLimiter, requireTelegramAccount, telegramDisconnect);
     app.get('/api/admin/audit/moderation', adminReadLimiter, (req, res, next) => getAudit(req, res, next, 'moderation'));
     app.get('/api/admin/audit/admin', adminReadLimiter, requireOwner, (req, res, next) => getAudit(req, res, next, 'admin'));
+    app.get('/api/admin/backup', adminReadLimiter, requireOwner, downloadBackup);
+    app.post('/api/admin/restore', adminActionLimiter, requireOwner, uploadBackup);
     app.get('/api/admin/moderators', adminReadLimiter, requireOwner, getModerators);
     app.post('/api/admin/moderators', adminActionLimiter, requireOwner, updateModerator);
+    app.get('/api/admin/icons', adminReadLimiter, getIconPreviews);
     app.get('/api/admin/icons/:id', adminReadLimiter, getIconPreview);
     app.get('/api/admin/reports', adminReadLimiter, getReports);
+    app.get('/api/admin/statistics/icons', adminReadLimiter, getIconDownloads);
     app.get('/api/admin/statistics', adminReadLimiter, getStatistics);
     app.post('/api/admin/logout', adminActionLimiter, logout);
     app.post('/api/admin/reports/:id/:action', adminActionLimiter, decideReport);

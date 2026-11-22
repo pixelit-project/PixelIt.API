@@ -16,12 +16,16 @@ require('../routes/moderation')(
     {},
     {
         async getOrSet(key, load, lifetime) {
-            assert.equal(key, 'AdminStatistics');
+            assert.ok(['AdminStatistics', 'AdminIconDownloads_7'].includes(key));
             assert.equal(lifetime, 60);
             return load();
         },
     },
     {
+        async getIconDownloads(days) {
+            assert.equal(days, 7);
+            return { days, through: '2026-11-22', daily: [], top: [] };
+        },
         async getAdminStatistics() {
             loads++;
             return { total: 3, active30d: 2, versions: [], hardware: [], matrices: [] };
@@ -46,6 +50,7 @@ async function request(path, body, cookie) {
 
 test('admin statistics require a session, use bounded caching and the shared admin read limit', async () => {
     assert.equal((await request('/api/admin/statistics')).status, 401);
+    assert.equal((await request('/api/admin/statistics/icons')).status, 401);
     assert.equal(loads, 0);
     const login = await request('/api/admin/login', { password: process.env.ADMIN_PASSWORD });
     assert.equal(login.status, 204);
@@ -53,7 +58,9 @@ test('admin statistics require a session, use bounded caching and the shared adm
     const statistics = await request('/api/admin/statistics', undefined, cookie);
     assert.equal(statistics.status, 200);
     assert.equal((await statistics.json()).active30d, 2);
-    assert.equal((await request('/api/admin/statistics', undefined, cookie)).status, 200);
+    const downloads = await request('/api/admin/statistics/icons?days=7', undefined, cookie);
+    assert.equal(downloads.status, 200);
+    assert.equal((await downloads.json()).days, 7);
     assert.equal((await request('/api/admin/statistics', undefined, cookie)).status, 429);
-    assert.equal(loads, 2);
+    assert.equal(loads, 1);
 });

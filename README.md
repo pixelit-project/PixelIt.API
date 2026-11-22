@@ -78,6 +78,7 @@ set; the Compose example explicitly enables `TELEMETRY_USER_CHECK`.
 
 | Variable | Default | Description |
 | --- | --- | --- |
+| `API_REQUEST_TIMEOUT_MS` | `300000` (5 minutes) | Time allowed to receive an HTTP request. Increase this on the destination if a large restore upload needs longer. |
 | `PORT` | `8080` | Port on which the API listens inside the container. If changed, update the container side of the port mapping, e.g. `8080:9090` for `PORT: 9090`. |
 | `TELEMETRY_USER_CHECK` | `false` | Set to `"true"` to restrict `/api/Statistics`, `/api/UserMap`, and `/api/UserMapData` to clients whose `uuid` query parameter matches a telemetry record updated within the last 30 days. Otherwise the response contains `error: { telemetryUser: false }`. This does not disable telemetry collection. The check is cached for 30 seconds. |
 | `TRUSTED_PROXIES` | Empty (no proxy trust) | Comma-separated trusted proxy IPs or CIDRs used to resolve the client IP from `X-Forwarded-For`. Leave empty for direct access. See the proxy configuration notes below. |
@@ -205,7 +206,7 @@ The API includes a dark-mode admin page at `/admin/` for reviewing icon reports,
 hiding or restoring icons, and viewing aggregate device telemetry statistics.
 
 The API creates the moderation tables automatically before accepting requests.
-The MySQL account needs `CREATE` permission in addition to its existing access.
+The MySQL account needs `CREATE` and `ALTER` permissions in addition to its existing access.
 Enable GitHub login with `ADMIN_ORIGIN` (public HTTPS origin, no trailing slash),
 `ADMIN_GITHUB_CLIENT_ID`, `ADMIN_GITHUB_CLIENT_SECRET` and `ADMIN_GITHUB_OWNER_ID`
 (your numeric GitHub ID). The owner manages up to 100 moderators by GitHub username in the admin UI.
@@ -216,6 +217,8 @@ See [moderation setup and API reference](docs/moderation.md) for setup,
 deployment requirements and endpoints. Admins and moderators can optionally connect
 Telegram for bundled notifications about new reports. Webhook registration is automatic
 at startup; see [Telegram setup](docs/telegram.md).
+
+Administrators can [download and restore API database backups](docs/moderation.md#backup-and-restore).
 
 ## Icon ratings
 
@@ -244,6 +247,11 @@ Actions access** in the package settings to let that token publish images.
 ## Changelog
 
 ### Unreleased
+
+- (o0shojo0o) Track successful icon downloads by day and show the most downloaded icons in admin statistics.
+- (o0shojo0o) Add administrator-only compressed database backup and restore for server migrations.
+- (o0shojo0o) Show report totals across all pages and automatically play animated previews in the admin panel.
+- (o0shojo0o) Keep hidden icons available by ID and add a separate block action for public API access.
 
 ### 2.4.1 (2026-11-20)
 

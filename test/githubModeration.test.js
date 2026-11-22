@@ -128,6 +128,8 @@ test('GitHub state binding, role enforcement, membership revocation and attribut
     const moderatorCookie = sessionCookie(moderatorLogin);
     assert.equal((await request('/api/admin/moderators', undefined, moderatorCookie)).status, 403);
     assert.equal((await request('/api/admin/audit/admin', undefined, moderatorCookie)).status, 403);
+    assert.equal((await request('/api/admin/backup', undefined, moderatorCookie)).status, 403);
+    assert.equal((await request('/api/admin/restore', {}, moderatorCookie)).status, 403);
     const moderationAudit = await request('/api/admin/audit/moderation', undefined, moderatorCookie);
     assert.equal(moderationAudit.status, 200);
     assert.equal((await moderationAudit.json())[0].actor, 'github:2');

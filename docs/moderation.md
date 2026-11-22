@@ -31,7 +31,7 @@ ID. Removal uses that stored ID, so it also works during a GitHub outage or afte
 a username change. Organizations and bot accounts cannot be added by name.
 At most 100 moderators are stored. Existing accounts display their last known
 username after their next successful login, otherwise their ID.
-Moderators can review reports, hide/restore icons and view aggregate statistics;
+Moderators can review reports, hide, block and restore icons and view aggregate statistics;
 only the owner can manage membership. Signing in with an unlisted account returns
 403. Membership is checked on each authenticated request; removal revokes access
 for existing moderator sessions as well. Audit decisions store `github:ID`;
@@ -55,7 +55,7 @@ shared administrator identity; enable GitHub login for individual accounts.
 ## Automatic database setup
 
 At startup the API applies the bundled `migrations/*.sql` files before opening its
-HTTP port. The MySQL user needs `CREATE`, `SELECT` and `INSERT` for migration setup,
+HTTP port. The MySQL user needs `CREATE`, `ALTER`, `SELECT` and `INSERT` for migration setup,
 in addition to the existing application permissions (including moderation `UPDATE` and moderator `DELETE`).
 Create the MySQL database before startup. The migrations create all required API
 tables, including bitmap, bitmap user, hit count, telemetry and icon rating
@@ -69,7 +69,7 @@ without stored procedures or semicolons inside SQL string literals.
 If the database is unavailable, permissions are missing, or a migration fails, the
 API exits with code 1 without accepting requests. Check the database and permissions,
 then restart. MySQL DDL is not transactional; a partial run is retried safely because
-the migrations use `CREATE TABLE IF NOT EXISTS`. Keep normal database backups.
+the migrations use idempotent DDL. Keep normal database backups.
 An installation that previously applied the moderation SQL manually is also supported:
 its existing tables are retained and the migration is registered on the first start.
 
@@ -118,30 +118,95 @@ Endpoints:
   the admin read limit.
 - `POST /api/admin/logout`: revokes the session.
 - `GET /api/admin/reports?before=123`: newest first, maximum 50 records; pass the
-  last record ID as `before` to continue.
-- `POST /api/admin/reports/:id/approve`: hides the icon from all public bitmap reads.
+  last record ID as `before` to continue. Add `includeCounts=1` for an object
+  containing the page in `reports` and global report totals in `counts`.
+  The totals cover all statuses regardless of the page or dashboard filter.
+- `POST /api/admin/reports/:id/approve`: hides a pending icon from `GetBMPAll`.
 - `POST /api/admin/reports/:id/reject`: rejects a pending report.
-- `POST /api/admin/reports/:id/restore`: restores an approved report's icon.
+- `POST /api/admin/reports/:id/restore`: restores a hidden icon to `GetBMPAll`.
+- `POST /api/admin/reports/:id/block`: blocks a pending or hidden icon from the public API.
+- `POST /api/admin/reports/:id/unblock`: removes the block and leaves the icon hidden from `GetBMPAll`.
+
+Hidden icons remain eligible for `GetBMPByID`, `GetBMPByID_v2` and `GetBMPNewst`,
+and can still be rated. Blocked icons are skipped by all public bitmap reads
+and excluded from ratings. Direct bitmap lookups use the existing invalid-ID
+response for blocked icons. Existing approved reports are treated as hidden.
 
 Decision requests use an empty JSON object. They require the admin session and
 matching Origin. Invalid state transitions return 409. Moderation changes retain
 bitmap data, record the decision timestamp and an audit event, and invalidate bitmap
 caches, including unlimited ID caches. In-flight reads can finish with their old
 snapshot; subsequent reads reload. Existing browser gallery lists need refreshing.
-Hiding cannot remove copies already downloaded by devices or other clients.
+Copies already downloaded by devices or other clients remain available locally.
 
 The device WebUI's report button is a separate companion change, not included here.
 Add it to `PixelIt.WebUI`, reusing its API base URL; update `PixelIt.Docs` with the
 public reporting flow when that UI is shipped. No firmware payload or polling is
 added by this API change.
 
-`GET /api/admin/icons/:id` supplies an authenticated, bounded icon preview, including
-hidden icons. The admin UI draws the first frame on demand; it does not autoplay
-animations or send anything to a display. Report text is rendered as plain text.
+`GET /api/admin/icons/:id` supplies an authenticated preview. For automatic
+loading, `GET /api/admin/icons?ids=1,2` accepts up to eight IDs and returns
+available previews, including hidden and blocked icons. Each RGB565 payload is
+limited to 1 MiB. The dashboard loads previews as cards enter view, plays
+animated frames every 250 ms while visible and opens a larger preview on click.
+Report text is rendered as plain text.
+
+## Icon download statistics
+
+Open **Statistics → Icon downloads** for daily counts and the top 20 icons over
+the last 7 or 30 UTC calendar days, including today. The authenticated endpoint
+`GET /api/admin/statistics/icons?days=7` shares the admin read limit. Aggregates
+are cached for 60 seconds.
+
+Successful `GetBMPByID` and `GetBMPByID_v2` responses count once each, including
+cache hits. Gallery lists, newest-icon requests, failures and admin previews
+are excluded. These counts represent API downloads. They contain no per-device
+identifiers and begin when tracking is deployed. The existing `hitCount` field
+continues to show its historical value. The daily counts are included in backups.
+
+## Backup and restore
+
+Open **Backup & Restore** as the configured GitHub owner or password
+administrator. **Download backup** exports a consistent snapshot of the API
+tables, including bitmaps, users, hit counts, ratings, moderation state and audit
+history, moderator accounts, Telegram subscriptions and telemetry. The compressed backup
+file contains private data such as device identifiers and Telegram chat IDs.
+Store and transfer it securely. Server configuration, environment credentials,
+sessions and migration history are outside the snapshot.
+
+To restore, save a current backup first, select the downloaded `.jsonl.gz` file and confirm
+**Restore database**. The restore replaces the database contents in one
+transaction. The destination must have the same application table layout and
+use InnoDB. After a successful restore, other admin sessions are signed out
+and the API clears its in-process caches. Use a single API instance and a quiet
+maintenance window for restore so writes and Telegram notifications do not
+overlap the replacement. Restoring an earlier backup can reinstate moderator
+access, icon visibility and queued notifications from that point in time.
+
+For a migration, deploy the same PixelIt.API version on the destination, prepare
+its database, configure its administrator and log in to the destination admin
+panel. Then upload the backup from the source. Configure environment credentials
+and the destination origin separately. Previous PixelIt API `.json` exports can
+also be restored into a compatible schema.
+
+The application streams compressed downloads and stages uploads in the server's
+temporary directory. There is no application-wide 64 MiB archive limit for
+`.jsonl.gz` files. Each encoded database record may be up to 64 MiB. Allow enough
+temporary disk space for the compressed upload and enough MySQL space for the
+restore transaction. Set reverse proxy request size and timeouts to accommodate
+the transfer. If the upload takes longer than five minutes, increase
+`API_REQUEST_TIMEOUT_MS` on the destination. The MySQL account needs `DELETE` and `INSERT` on the backed-up
+application tables for restoration.
+
+- `GET /api/admin/backup` downloads the snapshot and shares the admin read limit.
+- `POST /api/admin/restore` accepts the original file as
+  `application/octet-stream` with `X-PixelIt-Confirm-Restore: replace` and the
+  configured `Origin`. It shares the admin action limit and returns 204 on
+  success.
 
 ## Audit views
 
-**Moderation log** shows committed hide/reject/restore decisions by both
+**Moderation log** shows committed hide, reject, restore, block and unblock decisions by both
 moderators and admins, with actor, report/icon ID and timestamp. Existing moderation
 history remains available. GitHub names are the latest name saved at login or a
 moderation/membership action; immutable `github:ID` remains the authority. Older

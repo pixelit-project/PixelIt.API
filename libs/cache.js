@@ -37,7 +37,13 @@ function invalidateBitmaps() {
     log.info('Bitmap caches invalidated: {count} entries removed.', { count: bitmapKeys.length });
 }
 
+function invalidateAll() {
+    generation++;
+    cache.flushAll();
+}
+
 module.exports = {
+    invalidateAll,
     getOrSet,
     invalidateBitmaps,
 };

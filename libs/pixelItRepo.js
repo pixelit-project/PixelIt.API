@@ -53,7 +53,7 @@ async function getBMPByID(id) {
                         join pixel_it_user b on (a.userid  = b.id)
                         left outer join pixel_it_hitcount c on (a.id = c.pixel_id) 
                         where
-                            a.id = ? AND NOT EXISTS (SELECT 1 FROM pixel_it_reports r WHERE r.icon_id = a.id AND r.status = 'approved')`,
+                            a.id = ? AND NOT EXISTS (SELECT 1 FROM pixel_it_reports r WHERE r.icon_id = a.id AND r.status = 'blocked')`,
             id
         );
         if (result[0][0]) {
@@ -100,7 +100,7 @@ async function getBMPAll() {
                             IFNULL(c.hitcount,0) as hitCount
                         from pixel_it_bitmap a 
                         join pixel_it_user b on (a.userid  = b.id)
-                        left outer join pixel_it_hitcount c on (a.id = c.pixel_id) WHERE NOT EXISTS (SELECT 1 FROM pixel_it_reports r WHERE r.icon_id = a.id AND r.status = 'approved')`)
+                        left outer join pixel_it_hitcount c on (a.id = c.pixel_id) WHERE NOT EXISTS (SELECT 1 FROM pixel_it_reports r WHERE r.icon_id = a.id AND r.status IN ('approved', 'blocked'))`)
 
         for (const bmp of result[0]) {
             bmp.animated = tools.mysqlToBool(bmp.animated)
@@ -131,7 +131,7 @@ async function getBMPNewst() {
                         join pixel_it_user b on (a.userid  = b.id)
                         left outer join pixel_it_hitcount c on (a.id = c.pixel_id) 
                         where
-                            NOT EXISTS (SELECT 1 FROM pixel_it_reports r WHERE r.icon_id = a.id AND r.status = 'approved') ORDER BY a.id DESC LIMIT 1`)
+                            NOT EXISTS (SELECT 1 FROM pixel_it_reports r WHERE r.icon_id = a.id AND r.status = 'blocked') ORDER BY a.id DESC LIMIT 1`)
 
         if (!result[0][0]) return null;
         result[0][0].animated = tools.mysqlToBool(result[0][0].animated)
@@ -335,7 +335,7 @@ async function getIconRatings(uuid, iconId) {
         JOIN pixel_it_bitmap bitmap ON bitmap.id = ratings.icon_id
         WHERE NOT EXISTS (
             SELECT 1 FROM pixel_it_reports report
-            WHERE report.icon_id = bitmap.id AND report.status = 'approved'
+            WHERE report.icon_id = bitmap.id AND report.status = 'blocked'
         )
         ${iconId === undefined ? '' : 'AND ratings.icon_id = ?'}
         GROUP BY ratings.icon_id
@@ -356,7 +356,7 @@ async function rateIcon(iconId, uuid, stars) {
         FROM pixel_it_bitmap bitmap
         WHERE bitmap.id = ? AND NOT EXISTS (
             SELECT 1 FROM pixel_it_reports report
-            WHERE report.icon_id = bitmap.id AND report.status = 'approved'
+            WHERE report.icon_id = bitmap.id AND report.status = 'blocked'
         )
         ON DUPLICATE KEY UPDATE stars = ?
     `, [uuid, stars, iconId, stars]);
@@ -364,7 +364,46 @@ async function rateIcon(iconId, uuid, stars) {
     return rating?.myRating ? rating : null;
 }
 
+async function recordIconDownload(iconId) {
+    await connection.execute(`
+        INSERT INTO pixel_it_icon_downloads (day, icon_id, request_count)
+        VALUES (UTC_DATE(), ?, 1)
+        ON DUPLICATE KEY UPDATE request_count = request_count + 1
+    `, [iconId]);
+}
+
+async function getIconDownloads(days) {
+    const today = new Date();
+    const through = today.toISOString().slice(0, 10);
+    today.setUTCDate(today.getUTCDate() - days + 1);
+    const since = today.toISOString().slice(0, 10);
+    const [daily] = await connection.execute(`
+        SELECT DATE_FORMAT(day, '%Y-%m-%d') AS day, SUM(request_count) AS count
+        FROM pixel_it_icon_downloads
+        WHERE day BETWEEN ? AND ?
+        GROUP BY day
+        ORDER BY day
+    `, [since, through]);
+    const [top] = await connection.execute(`
+        SELECT counts.icon_id AS iconId, bitmap.name, SUM(counts.request_count) AS count
+        FROM pixel_it_icon_downloads counts
+        LEFT JOIN pixel_it_bitmap bitmap ON bitmap.id = counts.icon_id
+        WHERE counts.day BETWEEN ? AND ?
+        GROUP BY counts.icon_id, bitmap.name
+        ORDER BY count DESC, counts.icon_id
+        LIMIT 20
+    `, [since, through]);
+    return {
+        days,
+        through,
+        daily: daily.map(({ day, count }) => ({ day, count: Number(count) })),
+        top: top.map(({ iconId, name, count }) => ({ iconId, name, count: Number(count) })),
+    };
+}
+
 module.exports = {
+    recordIconDownload,
+    getIconDownloads,
     getBMPByID,
     getBMPByID_v2,
     getBMPAll,

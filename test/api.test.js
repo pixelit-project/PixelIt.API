@@ -14,6 +14,8 @@ let saves = 0;
 let invalidations = 0;
 let lookups = 0;
 let readFailure;
+let foundBitmap = null;
+const countedIcons = [];
 const votes = new Map();
 let releases = [];
 let statistics = { buildStats: [], versionStats: [], matrixStats: [], countryStats: [], sensorStats: [] };
@@ -27,9 +29,10 @@ stub('../libs/gitRepo', {
     getOfficialBuilds: async () => read(['official']),
 });
 stub('../libs/pixelItRepo', {
-    getBMPByID: async () => read(null),
-    getBMPByID_v2: async () => read(null),
-    getBMPNewst: async () => read(null),
+    getBMPByID: async () => read(foundBitmap),
+    getBMPByID_v2: async () => read(foundBitmap),
+    getBMPNewst: async () => read(foundBitmap),
+    recordIconDownload: async (id) => countedIcons.push(id),
     getBMPAll: async () => read([]),
     getIconRatings: async uuid => read(votes.size ? [testRating(uuid)] : []),
     rateIcon: async (iconId, uuid, stars) => {
@@ -287,5 +290,29 @@ test('rating submissions have an independent high default limit', async () => {
         assert.equal((await request('/api/icon-ratings', { iconId: 1, stars: 4 }, headers)).status, 429);
     } finally {
         app.set('trust proxy', false);
+    }
+});
+
+test('successful requests to both ID endpoints count on cache hits, unlike other bitmap endpoints', async () => {
+    foundBitmap = { id: 21, name: 'Tracked icon', hitCount: 4 };
+    try {
+        const { getOrSet } = require('../libs/cache');
+        require('../libs/cache').getOrSet = async (key, load) => {
+            if (key.startsWith('GetBMPByID')) {
+                return key.endsWith('_21') ? foundBitmap : null;
+            }
+            return getOrSet(key, load);
+        };
+        try {
+            for (const path of ['/api/GetBMPByID/21', '/api/GetBMPByID_v2/21', '/api/GetBMPNewst', '/api/GetBMPAll']) {
+                assert.equal((await request(path)).status, 200);
+            }
+            assert.equal((await request('/api/GetBMPByID/22')).status, 400);
+            assert.deepEqual(countedIcons, [21, 21]);
+        } finally {
+            require('../libs/cache').getOrSet = getOrSet;
+        }
+    } finally {
+        foundBitmap = null;
     }
 });

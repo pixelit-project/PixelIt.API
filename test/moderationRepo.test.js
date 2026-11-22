@@ -72,3 +72,17 @@ test('decision and audit commit together, rollback failures and reject repeated 
     assert.deepEqual(calls.slice(-2), ['rollback', 'release']);
     assert.ok(!calls.some((c) => Array.isArray(c) && c[0].includes('audit')));
 });
+
+test('blocking accepts pending and hidden icons, and unblocking returns to hidden', async () => {
+    changed = true;
+    for (const [action, values] of [
+        ['block', ['blocked', 7, 'pending', 'approved']],
+        ['unblock', ['approved', 7, 'blocked']],
+    ]) {
+        calls = [];
+        assert.equal(await repo.decide(7, action), true);
+        assert.deepEqual(calls.find((call) => Array.isArray(call) && call[0].startsWith('UPDATE'))[1], values);
+        assert.deepEqual(calls.find((call) => Array.isArray(call) && call[0].includes('audit'))[1], [7, action, 'admin']);
+        assert.deepEqual(calls.slice(-2), ['commit', 'release']);
+    }
+});

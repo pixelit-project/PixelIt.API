@@ -1,4 +1,5 @@
 const mysql = require('mysql2/promise');
+const { mysqlToBool } = require('./tools');
 
 const pool = mysql.createPool({
     host: process.env.MYSQL_HOST,
@@ -13,7 +14,12 @@ async function report(iconId, reason) {
     try {
         await connection.beginTransaction();
         // Lock the icon so concurrent reports cannot create multiple open requests.
-        const [icons] = await connection.query('SELECT id FROM pixel_it_bitmap WHERE id = ? FOR UPDATE', [iconId]);
+        const [icons] = await connection.query(`SELECT b.id
+             FROM pixel_it_bitmap b
+             WHERE b.id = ? AND NOT EXISTS (
+                 SELECT 1 FROM pixel_it_reports r WHERE r.icon_id = b.id AND r.status = 'blocked'
+             )
+             FOR UPDATE`, [iconId]);
         if (!icons.length) {
             await connection.rollback();
             return false;
@@ -23,7 +29,7 @@ async function report(iconId, reason) {
              SELECT ?, ?
              WHERE NOT EXISTS (
                  SELECT 1 FROM pixel_it_reports
-                 WHERE icon_id = ? AND status IN ('pending', 'approved')
+                 WHERE icon_id = ? AND status IN ('pending', 'approved', 'blocked')
              )`,
             [iconId, reason, iconId]
         );
@@ -45,15 +51,21 @@ async function report(iconId, reason) {
     }
 }
 
-async function preview(iconId) {
+async function previews(iconIds) {
     const [icons] = await pool.query(
-        `SELECT sizex AS sizeX, sizey AS sizeY,
-                LEFT(rgb565array, 100000) AS pixels
+        `SELECT id, sizex AS sizeX, sizey AS sizeY, animated, rgb565array AS pixels
          FROM pixel_it_bitmap
-         WHERE id = ?`,
-        [iconId]
+         WHERE id IN (?) AND OCTET_LENGTH(rgb565array) <= 1048576`,
+        [iconIds]
     );
-    return icons[0];
+    return icons.map((icon) => ({ ...icon, animated: mysqlToBool(icon.animated) }));
+}
+
+async function preview(iconId) {
+    const [icon] = await previews([iconId]);
+    if (icon) {
+        return { sizeX: icon.sizeX, sizeY: icon.sizeY, pixels: icon.pixels, animated: icon.animated };
+    }
 }
 
 async function list(before) {
@@ -70,17 +82,37 @@ async function list(before) {
     return reports;
 }
 
+async function reportCounts() {
+    const [rows] = await pool.query(`
+        SELECT status, COUNT(*) AS count
+        FROM pixel_it_reports
+        GROUP BY status
+    `);
+    const counts = { all: 0, pending: 0, approved: 0, blocked: 0, rejected: 0 };
+    for (const { status, count } of rows) {
+        counts[status] = Number(count);
+        counts.all += Number(count);
+    }
+    return counts;
+}
+
 async function decide(reportId, action, actor = 'admin', actorLogin = null) {
     const connection = await pool.getConnection();
-    const status = action === 'approve' ? 'approved' : 'rejected';
-    const previousStatus = action === 'restore' ? 'approved' : 'pending';
+    const transitions = {
+        approve: ['approved', 'pending'],
+        reject: ['rejected', 'pending'],
+        restore: ['rejected', 'approved'],
+        block: ['blocked', 'pending', 'approved'],
+        unblock: ['approved', 'blocked'],
+    };
+    const [status, ...previousStatuses] = transitions[action];
     try {
         await connection.beginTransaction();
         const [result] = await connection.execute(
             `UPDATE pixel_it_reports
              SET status = ?, processed_at = CURRENT_TIMESTAMP
-             WHERE id = ? AND status = ?`,
-            [status, reportId, previousStatus]
+             WHERE id = ? AND status IN (${previousStatuses.map(() => '?').join(', ')})`,
+            [status, reportId, ...previousStatuses]
         );
         if (!result.affectedRows) {
             await connection.rollback();
@@ -227,7 +259,9 @@ module.exports = {
     telegram: require('./telegramRepo')(pool),
     report,
     preview,
+    previews,
     list,
+    reportCounts,
     decide,
     listModerators,
     isModerator,

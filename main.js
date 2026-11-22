@@ -28,8 +28,14 @@ app.set('trust proxy', process.env.TRUSTED_PROXIES
 app.use(useragent.express());
 // adding Helmet to enhance your Rest API's security
 app.use(helmet());
-// using bodyParser to parse JSON bodies into JS objects
-app.use(bodyParser.json());
+// Restore is authenticated before the upload is streamed to disk.
+const parseJson = bodyParser.json();
+app.use((req, res, next) => {
+    if (/^\/api\/admin\/restore\/?$/i.test(req.path)) {
+        return next();
+    }
+    parseJson(req, res, next);
+});
 // enabling CORS for all requests
 app.use(cors());
 
@@ -72,7 +78,7 @@ if (require.main === module) {
         })
         .catch(() => {
             // Never include connection configuration or credentials in startup logs.
-            log.error('API startup failed. Check database availability, migration files and CREATE/SELECT/INSERT permissions.');
+            log.error('API startup failed. Check database availability, migration files and CREATE/ALTER/SELECT/INSERT permissions.');
             process.exit(1);
         });
 }
