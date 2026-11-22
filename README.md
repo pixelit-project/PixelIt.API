@@ -248,6 +248,8 @@ Actions access** in the package settings to let that token publish images.
 
 ### Unreleased
 
+### 2.5.2 (2026-11-22)
+
 - (o0shojo0o) Align the headings, cards and charts across the admin statistics.
 
 ### 2.5.1 (2026-11-22)
