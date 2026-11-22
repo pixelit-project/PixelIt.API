@@ -268,14 +268,16 @@ p {
     position: relative;
     overflow: hidden;
 }
-.stat > span {
+.stat > span,
+.stat > dt {
     font-size: 12px;
     color: var(--muted);
     display: flex;
     align-items: center;
     gap: 8px;
 }
-.stat strong {
+.stat strong,
+.stat > dd:first-of-type {
     display: block;
     font-size: 36px;
     font-variant-numeric: tabular-nums;
@@ -283,7 +285,8 @@ p {
     font-weight: 600;
     margin: 10px 0 2px;
 }
-.stat small {
+.stat small,
+.stat > .icon-download-peak-date {
     font-size: 11px;
     color: var(--subtle);
 }
@@ -659,7 +662,8 @@ dialog p {
         grid-template-columns: repeat(2, 1fr);
         margin-bottom: 26px;
     }
-    .stat strong {
+    .stat strong,
+    .stat > dd:first-of-type {
         font-size: 27px;
     }
     .toolbar,
@@ -960,7 +964,8 @@ input::placeholder {
     border-color: #385b8b;
     background: linear-gradient(130deg, #203e6766, transparent), var(--surface);
 }
-.stat:nth-child(2) strong {
+.stat:nth-child(2) strong,
+.stat:nth-child(2) > dd:first-of-type {
     color: #a9ceff;
 }
 .report:hover {
@@ -1161,91 +1166,43 @@ input::placeholder {
 }
 
 .icon-downloads {
-    margin-top: 30px;
-    padding: clamp(16px, 3vw, 36px);
-    border-color: var(--blue-line);
-    background: radial-gradient(ellipse at top right, #254c8066, transparent 50%), #111924;
+    margin-top: 32px;
 }
-.icon-download-header,
+.icon-download-header {
+    flex-wrap: wrap;
+}
+.icon-download-summary {
+    margin-top: 0;
+    margin-inline: 0;
+}
+.icon-download-summary .stat > dd {
+    margin-inline: 0;
+    overflow-wrap: anywhere;
+}
+.icon-download-trend {
+    margin: 0 0 18px;
+}
 .icon-download-trend figcaption {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: baseline;
     flex-wrap: wrap;
-    gap: 12px;
-}
-.icon-download-header h2 {
-    margin: 0;
-    font-size: clamp(26px, 4vw, 40px);
-    line-height: 1.12;
-    letter-spacing: -0.04em;
-    font-weight: 800;
-}
-.icon-download-header p,
-.icon-download-trend p {
-    color: var(--muted);
-    margin: 4px 0 0;
-}
-.icon-download-summary {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
-    gap: 12px;
-    margin: 24px 0 16px;
-}
-.icon-download-summary > div {
-    background: #182742;
-    border: 1px solid #2c4670;
-    border-radius: 12px;
-    padding: 14px 18px;
-    min-width: 0;
-}
-.icon-download-summary > div:first-child {
-    background: linear-gradient(135deg, #203d6c, #182742);
-}
-.icon-download-summary dt {
-    color: #b5c9e6;
-    font-weight: 650;
-}
-.icon-download-summary dd {
-    margin: 0;
-    font-size: clamp(28px, 4.5vw, 52px);
-    font-weight: 850;
-    line-height: 1.1;
-    font-variant-numeric: tabular-nums;
-    overflow-wrap: anywhere;
-}
-.icon-download-summary .icon-download-peak-date {
-    color: #b5c9e6;
-    margin-top: 5px;
-    font-size: 12px;
-    font-weight: 500;
-}
-.icon-download-panel {
-    border: 1px solid #2a374b;
-    background: #101721;
-    border-radius: 14px;
-    padding: clamp(12px, 2.6vw, 24px);
-    min-width: 0;
-}
-.icon-download-panel h3 {
-    margin: 0 0 16px;
-    font-size: 18px;
-    font-weight: 750;
-}
-.icon-download-trend {
-    margin: 0 0 16px;
+    gap: 8px;
 }
 .icon-download-trend figcaption h3,
 .icon-download-trend figcaption p {
     margin: 0;
+}
+.icon-download-trend figcaption p {
+    color: var(--muted);
 }
 .icon-download-chart {
     display: flex;
     gap: clamp(1px, 0.65vw, 9px);
     height: clamp(110px, 17vw, 185px);
     margin-top: 18px;
-    border-bottom: 1px solid #40516a;
-    background: repeating-linear-gradient(to top, transparent 0 calc(25% - 1px), #263247 calc(25% - 1px) 25%);
+    border-bottom: 1px solid var(--line);
+    background: repeating-linear-gradient(to top, transparent 0 calc(25% - 1px), var(--line) calc(25% - 1px) 25%);
 }
 .icon-trend-column {
     flex: 1;
@@ -1258,16 +1215,16 @@ input::placeholder {
 }
 .icon-trend-column:hover,
 .icon-trend-column[aria-pressed='true'] {
-    background: #26466c55;
+    background: var(--blue-surface);
 }
 .icon-trend-bar {
     width: 100%;
     min-height: 2px;
     border-radius: 4px 4px 0 0;
-    background: linear-gradient(to top, #3068df, #71a9ff);
+    background: var(--primary);
 }
 .icon-trend-column[aria-pressed='true'] .icon-trend-bar {
-    background: linear-gradient(to top, #467be5, #a4d1ff);
+    background: var(--accent);
 }
 .icon-download-axis {
     display: flex;
@@ -1275,25 +1232,4 @@ input::placeholder {
     color: var(--muted);
     font-size: 12px;
     margin-top: 6px;
-}
-.icon-download-details {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-    gap: 16px;
-    align-items: start;
-}
-.icon-download-details .distribution-row + .distribution-row {
-    margin-top: 12px;
-}
-.icon-download-details .distribution-heading {
-    margin-bottom: 5px;
-    font-size: 13px;
-}
-.icon-download-details .distribution-heading strong {
-    color: var(--ink);
-    font-weight: 750;
-    font-variant-numeric: tabular-nums;
-}
-.icon-download-details meter {
-    height: 9px;
 }

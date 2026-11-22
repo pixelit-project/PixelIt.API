@@ -248,6 +248,8 @@ Actions access** in the package settings to let that token publish images.
 
 ### Unreleased
 
+- (o0shojo0o) Align the headings, cards and charts across the admin statistics.
+
 ### 2.5.1 (2026-11-22)
 
 - (o0shojo0o) Add a download trend chart and larger summary figures to the admin statistics.

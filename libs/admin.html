@@ -190,6 +190,13 @@
                     <div id="moderator-list" class="reports"></div>
                 </div>
                 <div id="statistics-view" hidden>
+                    <div class="queue-heading">
+                        <div>
+                            <h2>Device overview</h2>
+                            <p>Distributions over the last 30 days · Top 8 entries per category.</p>
+                        </div>
+                        <button id="statistics-logout" class="quiet">Sign out ↗</button>
+                    </div>
                     <div class="stats telemetry-stats">
                         <div class="stat">
                             <span>Active · 24 hours</span>
@@ -212,13 +219,6 @@
                             <small>All telemetry records</small>
                         </div>
                     </div>
-                    <div class="queue-heading">
-                        <div>
-                            <h2>Device overview</h2>
-                            <p>Distributions over the last 30 days · Top 8 entries per category.</p>
-                        </div>
-                        <button id="statistics-logout" class="quiet">Sign out ↗</button>
-                    </div>
                     <p id="statistics-message" role="status" hidden></p>
                     <div class="telemetry-grid">
                         <article class="telemetry-card">
@@ -240,8 +240,8 @@
                             Telemetry reflects recent reports, not live connections. Time windows overlap.
                         </span>
                     </footer>
-                    <section class="telemetry-card icon-downloads" aria-labelledby="icon-download-heading">
-                        <header class="icon-download-header">
+                    <section class="icon-downloads" aria-labelledby="icon-download-heading">
+                        <header class="queue-heading icon-download-header">
                             <div>
                                 <h2 id="icon-download-heading">Icon downloads</h2>
                                 <p>Successful API downloads by icon ID · UTC</p>
@@ -253,22 +253,22 @@
                         </header>
                         <p id="icon-download-message" role="status"></p>
                         <div id="icon-download-results" hidden>
-                            <dl class="icon-download-summary">
-                                <div>
+                            <dl class="stats icon-download-summary">
+                                <div class="stat">
                                     <dt>Total downloads</dt>
                                     <dd id="icon-download-total"></dd>
                                 </div>
-                                <div>
+                                <div class="stat">
                                     <dt>Today (UTC)</dt>
                                     <dd id="icon-download-today"></dd>
                                 </div>
-                                <div>
+                                <div class="stat">
                                     <dt>Peak day</dt>
                                     <dd id="icon-download-peak"></dd>
                                     <dd id="icon-download-peak-date" class="icon-download-peak-date"></dd>
                                 </div>
                             </dl>
-                            <figure class="icon-download-panel icon-download-trend">
+                            <figure class="telemetry-card icon-download-trend">
                                 <figcaption>
                                     <h3>API download trend</h3>
                                     <p id="icon-download-chart-value" aria-live="polite"></p>
@@ -279,12 +279,12 @@
                                     <span id="icon-download-end"></span>
                                 </div>
                             </figure>
-                            <div class="icon-download-details">
-                                <article class="icon-download-panel">
+                            <div class="telemetry-grid">
+                                <article class="telemetry-card">
                                     <h3>Downloads by day</h3>
                                     <div id="icon-download-daily"></div>
                                 </article>
-                                <article class="icon-download-panel">
+                                <article class="telemetry-card">
                                     <h3>Top 20 icons</h3>
                                     <div id="icon-download-top"></div>
                                 </article>
