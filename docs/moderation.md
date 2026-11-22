@@ -165,6 +165,26 @@ are excluded. These counts represent API downloads. They contain no per-device
 identifiers and begin when tracking is deployed. The existing `hitCount` field
 continues to show its historical value. The daily counts are included in backups.
 
+## Icon rating statistics
+
+Open **Statistics → Icon ratings** for the overall vote count, the
+vote-weighted average and the distribution from one to five stars. The section
+lists the 20 most rated icons and up to 10 icons each with the highest and
+lowest averages. Equal averages are ordered by vote count, then icon ID.
+Icons with a single vote qualify for the rankings.
+
+The tab charts successful submissions per UTC day and shows the total for the
+selected period. Choose the last 7 or 30 days, including today, and select a bar
+to inspect that day's count. Each successful submission counts, including repeat
+submissions and changes to existing votes. Existing votes have no timestamps.
+Daily tracking starts when this update is deployed, and the counters are included
+in database backups.
+
+The authenticated endpoint `GET /api/admin/statistics/icon-ratings?days=7` shares
+the admin read limit and caches aggregates for 60 seconds. It includes
+stored votes for hidden icons. Each device contributes its current vote per
+icon, and the response contains only aggregates.
+
 ## Backup and restore
 
 Open **Backup & Restore** as the configured GitHub owner or password

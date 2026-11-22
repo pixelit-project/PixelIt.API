@@ -321,12 +321,12 @@ async function getAdminStatistics() {
     };
 }
 
-async function getIconRatings(uuid, iconId) {
+async function getIconRatings(uuid, iconId, database = connection) {
     const values = [uuid];
     if (iconId !== undefined) {
         values.push(iconId);
     }
-    const [rows] = await connection.execute(`
+    const [rows] = await database.execute(`
         SELECT ratings.icon_id AS iconId,
                AVG(ratings.stars) AS average,
                COUNT(*) AS count,
@@ -349,19 +349,37 @@ async function getIconRatings(uuid, iconId) {
 }
 
 async function rateIcon(iconId, uuid, stars) {
-    // The composite primary key keeps one vote when a device updates its rating.
-    await connection.execute(`
-        INSERT INTO pixel_it_icon_ratings (icon_id, voter_uuid, stars)
-        SELECT bitmap.id, UNHEX(?), ?
-        FROM pixel_it_bitmap bitmap
-        WHERE bitmap.id = ? AND NOT EXISTS (
-            SELECT 1 FROM pixel_it_reports report
-            WHERE report.icon_id = bitmap.id AND report.status = 'blocked'
-        )
-        ON DUPLICATE KEY UPDATE stars = ?
-    `, [uuid, stars, iconId, stars]);
-    const [rating] = await getIconRatings(uuid, iconId);
-    return rating?.myRating ? rating : null;
+    const database = await connection.getConnection();
+    try {
+        await database.beginTransaction();
+        await database.execute(`
+            INSERT INTO pixel_it_icon_ratings (icon_id, voter_uuid, stars)
+            SELECT bitmap.id, UNHEX(?), ?
+            FROM pixel_it_bitmap bitmap
+            WHERE bitmap.id = ? AND NOT EXISTS (
+                SELECT 1 FROM pixel_it_reports report
+                WHERE report.icon_id = bitmap.id AND report.status = 'blocked'
+            )
+            ON DUPLICATE KEY UPDATE stars = ?
+        `, [uuid, stars, iconId, stars]);
+        const [rating] = await getIconRatings(uuid, iconId, database);
+        if (!rating?.myRating) {
+            await database.rollback();
+            return null;
+        }
+        await database.execute(`
+            INSERT INTO pixel_it_icon_rating_submissions (day, submission_count)
+            VALUES (UTC_DATE(), 1)
+            ON DUPLICATE KEY UPDATE submission_count = submission_count + 1
+        `);
+        await database.commit();
+        return rating;
+    } catch (error) {
+        await database.rollback();
+        throw error;
+    } finally {
+        database.release();
+    }
 }
 
 async function recordIconDownload(iconId) {
@@ -372,11 +390,15 @@ async function recordIconDownload(iconId) {
     `, [iconId]);
 }
 
-async function getIconDownloads(days) {
+function getUtcDateRange(days) {
     const today = new Date();
     const through = today.toISOString().slice(0, 10);
     today.setUTCDate(today.getUTCDate() - days + 1);
-    const since = today.toISOString().slice(0, 10);
+    return { since: today.toISOString().slice(0, 10), through };
+}
+
+async function getIconDownloads(days) {
+    const { since, through } = getUtcDateRange(days);
     const [daily] = await connection.execute(`
         SELECT DATE_FORMAT(day, '%Y-%m-%d') AS day, SUM(request_count) AS count
         FROM pixel_it_icon_downloads
@@ -401,7 +423,65 @@ async function getIconDownloads(days) {
     };
 }
 
+async function getAdminIconRatings(days) {
+    const { since, through } = getUtcDateRange(days);
+    const [daily] = await connection.execute(`
+        SELECT DATE_FORMAT(day, '%Y-%m-%d') AS day, submission_count AS count
+        FROM pixel_it_icon_rating_submissions
+        WHERE day BETWEEN ? AND ?
+        ORDER BY day
+    `, [since, through]);
+    const [distribution] = await connection.execute(`
+        SELECT stars, COUNT(*) AS count
+        FROM pixel_it_icon_ratings
+        GROUP BY stars
+        ORDER BY stars DESC
+    `);
+    const [rankedIcons] = await connection.execute(`
+        WITH rated_icons AS (
+            SELECT icon_id, AVG(stars) AS average, COUNT(*) AS count
+            FROM pixel_it_icon_ratings
+            GROUP BY icon_id
+        ), rankings AS (
+            SELECT icon_id, average, count,
+                   ROW_NUMBER() OVER (ORDER BY count DESC, icon_id) AS mostRank,
+                   ROW_NUMBER() OVER (ORDER BY average DESC, count DESC, icon_id) AS bestRank,
+                   ROW_NUMBER() OVER (ORDER BY average ASC, count DESC, icon_id) AS worstRank
+            FROM rated_icons
+        )
+        SELECT rankings.icon_id AS iconId, bitmap.name, average, count,
+               mostRank, bestRank, worstRank
+        FROM rankings
+        LEFT JOIN pixel_it_bitmap bitmap ON bitmap.id = rankings.icon_id
+        WHERE mostRank <= 20 OR bestRank <= 10 OR worstRank <= 10
+    `);
+    const stars = [5, 4, 3, 2, 1].map(stars => ({
+        stars,
+        count: Number(distribution.find(row => Number(row.stars) === stars)?.count ?? 0),
+    }));
+    const total = stars.reduce((sum, entry) => sum + entry.count, 0);
+    function selectRanking(rank, limit) {
+        return rankedIcons.filter(row => row[rank] <= limit)
+            .sort((first, second) => first[rank] - second[rank])
+            .map(({ iconId, name, average, count }) => ({
+                iconId, name, average: Number(average), count: Number(count),
+            }));
+    }
+    return {
+        total,
+        average: total ? stars.reduce((sum, entry) => sum + entry.stars * entry.count, 0) / total : null,
+        stars,
+        days,
+        through,
+        daily: daily.map(({ day, count }) => ({ day, count: Number(count) })),
+        mostRated: selectRanking('mostRank', 20),
+        bestRated: selectRanking('bestRank', 10),
+        worstRated: selectRanking('worstRank', 10),
+    };
+}
+
 module.exports = {
+    getAdminIconRatings,
     recordIconDownload,
     getIconDownloads,
     getBMPByID,

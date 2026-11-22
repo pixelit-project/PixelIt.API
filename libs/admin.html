@@ -190,57 +190,66 @@
                     <div id="moderator-list" class="reports"></div>
                 </div>
                 <div id="statistics-view" hidden>
-                    <div class="queue-heading">
-                        <div>
-                            <h2>Device overview</h2>
-                            <p>Distributions over the last 30 days · Top 8 entries per category.</p>
+                    <div class="statistics-navigation">
+                        <div class="statistics-tabs" role="tablist" aria-label="Statistics">
+                            <button type="button" id="statistics-devices-tab" role="tab" aria-selected="true" aria-controls="statistics-devices">Devices</button>
+                            <button type="button" id="statistics-downloads-tab" role="tab" aria-selected="false" aria-controls="statistics-downloads" tabindex="-1">Icon downloads</button>
+                            <button type="button" id="statistics-ratings-tab" role="tab" aria-selected="false" aria-controls="statistics-ratings" tabindex="-1">Icon ratings</button>
                         </div>
                         <button id="statistics-logout" class="quiet">Sign out ↗</button>
                     </div>
-                    <div class="stats telemetry-stats">
-                        <div class="stat">
-                            <span>Active · 24 hours</span>
-                            <strong id="telemetry-24h">–</strong>
-                            <small>Recently reporting devices</small>
+                    <section id="statistics-devices" role="tabpanel" aria-labelledby="statistics-devices-tab" tabindex="0">
+                        <div class="queue-heading">
+                            <div>
+                                <h2>Device overview</h2>
+                                <p>Distributions over the last 30 days · Top 8 entries per category.</p>
+                            </div>
                         </div>
-                        <div class="stat">
-                            <span>Active · 7 days</span>
-                            <strong id="telemetry-7d">–</strong>
-                            <small>Recently reporting devices</small>
+                        <div class="stats telemetry-stats">
+                            <div class="stat">
+                                <span>Active · 24 hours</span>
+                                <strong id="telemetry-24h">–</strong>
+                                <small>Recently reporting devices</small>
+                            </div>
+                            <div class="stat">
+                                <span>Active · 7 days</span>
+                                <strong id="telemetry-7d">–</strong>
+                                <small>Recently reporting devices</small>
+                            </div>
+                            <div class="stat">
+                                <span>Active · 30 days</span>
+                                <strong id="telemetry-30d">–</strong>
+                                <small>Basis for distributions</small>
+                            </div>
+                            <div class="stat">
+                                <span>Recorded devices</span>
+                                <strong id="telemetry-total">–</strong>
+                                <small>All telemetry records</small>
+                            </div>
                         </div>
-                        <div class="stat">
-                            <span>Active · 30 days</span>
-                            <strong id="telemetry-30d">–</strong>
-                            <small>Basis for distributions</small>
+                        <p id="statistics-message" role="status" hidden></p>
+                        <div class="telemetry-grid">
+                            <article class="telemetry-card">
+                                <h3>Firmware versions</h3>
+                                <div id="telemetry-versions"></div>
+                            </article>
+                            <article class="telemetry-card">
+                                <h3>Hardware types</h3>
+                                <div id="telemetry-hardware"></div>
+                            </article>
+                            <article class="telemetry-card">
+                                <h3>Matrix configurations</h3>
+                                <div id="telemetry-matrices"></div>
+                            </article>
                         </div>
-                        <div class="stat">
-                            <span>Recorded devices</span>
-                            <strong id="telemetry-total">–</strong>
-                            <small>All telemetry records</small>
-                        </div>
-                    </div>
-                    <p id="statistics-message" role="status" hidden></p>
-                    <div class="telemetry-grid">
-                        <article class="telemetry-card">
-                            <h3>Firmware versions</h3>
-                            <div id="telemetry-versions"></div>
-                        </article>
-                        <article class="telemetry-card">
-                            <h3>Hardware types</h3>
-                            <div id="telemetry-hardware"></div>
-                        </article>
-                        <article class="telemetry-card">
-                            <h3>Matrix configurations</h3>
-                            <div id="telemetry-matrices"></div>
-                        </article>
-                    </div>
-                    <footer>
-                        <span id="statistics-updated">Not loaded yet</span>
-                        <span>
-                            Telemetry reflects recent reports, not live connections. Time windows overlap.
-                        </span>
-                    </footer>
-                    <section class="icon-downloads" aria-labelledby="icon-download-heading">
+                        <footer>
+                            <span id="statistics-updated">Not loaded yet</span>
+                            <span>
+                                Telemetry reflects recent reports, not live connections. Time windows overlap.
+                            </span>
+                        </footer>
+                    </section>
+                    <section id="statistics-downloads" role="tabpanel" aria-labelledby="statistics-downloads-tab" tabindex="0" hidden>
                         <header class="queue-heading icon-download-header">
                             <div>
                                 <h2 id="icon-download-heading">Icon downloads</h2>
@@ -287,6 +296,62 @@
                                 <article class="telemetry-card">
                                     <h3>Top 20 icons</h3>
                                     <div id="icon-download-top"></div>
+                                </article>
+                            </div>
+                        </div>
+                    </section>
+                    <section id="statistics-ratings" role="tabpanel" aria-labelledby="statistics-ratings-tab" tabindex="0" hidden>
+                        <header class="queue-heading icon-download-header">
+                            <div>
+                                <h2 id="icon-rating-heading">Icon ratings</h2>
+                                <p>Current votes across all icons, including hidden icons.</p>
+                            </div>
+                            <select id="icon-rating-days" aria-label="Rating submissions period">
+                                <option value="7">Last 7 days</option>
+                                <option value="30" selected>Last 30 days</option>
+                            </select>
+                        </header>
+                        <p id="icon-rating-message" role="status"></p>
+                        <div id="icon-rating-results" hidden>
+                            <dl class="stats icon-download-summary">
+                                <div class="stat">
+                                    <dt>Stored votes · All time</dt>
+                                    <dd id="icon-rating-total"></dd>
+                                </div>
+                                <div class="stat">
+                                    <dt>Average rating · All time</dt>
+                                    <dd id="icon-rating-average"></dd>
+                                </div>
+                            </dl>
+                            <figure class="telemetry-card icon-download-trend">
+                                <figcaption>
+                                    <h3>Rating submissions by day</h3>
+                                    <p id="icon-rating-chart-value" aria-live="polite"></p>
+                                </figcaption>
+                                <p id="icon-rating-period-total"></p>
+                                <div id="icon-rating-chart" class="icon-download-chart" role="group" aria-label="Daily rating submissions"></div>
+                                <div class="icon-download-axis" aria-hidden="true">
+                                    <span id="icon-rating-start"></span>
+                                    <span id="icon-rating-end"></span>
+                                </div>
+                                <p>UTC · Tracking begins with this update. Repeat submissions are included.</p>
+                            </figure>
+                            <div class="telemetry-grid">
+                                <article class="telemetry-card">
+                                    <h3>Star distribution</h3>
+                                    <div id="icon-rating-stars"></div>
+                                </article>
+                                <article class="telemetry-card">
+                                    <h3>Most rated · Top 20</h3>
+                                    <ol class="rating-ranking" id="icon-rating-mostRated"></ol>
+                                </article>
+                                <article class="telemetry-card">
+                                    <h3>Best rated · Top 10</h3>
+                                    <ol class="rating-ranking" id="icon-rating-bestRated"></ol>
+                                </article>
+                                <article class="telemetry-card">
+                                    <h3>Lowest rated · Bottom 10</h3>
+                                    <ol class="rating-ranking" id="icon-rating-worstRated"></ol>
                                 </article>
                             </div>
                         </div>

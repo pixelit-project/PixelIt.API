@@ -14,6 +14,7 @@ const tableNames = [
     'pixel_it_user', 'pixel_it_bitmap', 'pixel_it_hitcount', 'pixel_it_telemetry',
     'pixel_it_reports', 'pixel_it_moderation_audit', 'pixel_it_github_names', 'pixel_it_admin_audit',
     'pixel_it_moderators', 'pixel_it_telegram', 'pixel_it_icon_ratings', 'pixel_it_icon_downloads',
+    'pixel_it_icon_rating_submissions',
 ];
 const schema = tableNames.flatMap((tableName) => [{
     tableName, columnName: 'id', dataType: 'bigint', columnType: 'bigint unsigned', nullable: 'NO', engine: 'InnoDB',
@@ -93,6 +94,20 @@ test('backup and restore preserve large IDs and binary fields and replace tables
     assert.match(sql, /VALUES \(\?, \?\)/);
     assert.deepEqual(values, [id, binaryUuid]);
     assert.deepEqual(calls.slice(-2), ['commit', 'release']);
+});
+
+test('restore accepts backups created before either daily counter was added', async (t) => {
+    const file = await exportFixture(t);
+    const [manifest, ...records] = gunzipSync(await readFile(file)).toString().trimEnd().split('\n');
+    for (const omitted of [1, 2]) {
+        const oldManifest = JSON.parse(manifest);
+        oldManifest.tables.splice(-omitted);
+        await writeFile(file, gzipSync([JSON.stringify(oldManifest), ...records].join('\n') + '\n'));
+        calls = [];
+        await restoreBackup(file);
+        assert.ok(calls.includes('DELETE FROM `pixel_it_icon_rating_submissions`'));
+        assert.deepEqual(calls.slice(-2), ['commit', 'release']);
+    }
 });
 
 test('restore rejects invalid or incomplete archives before deleting anything and rolls back failed inserts', async (t) => {

@@ -487,7 +487,7 @@ function clearStatistics() {
     getElement('statistics-updated').textContent = 'Not loaded yet';
 }
 
-function renderDistribution(id, entries, total) {
+function renderDistribution(id, entries, total, unit = 'devices') {
     const container = getElement(id);
     container.replaceChildren();
     if (!entries.length) {
@@ -508,7 +508,7 @@ function renderDistribution(id, entries, total) {
         meter.min = 0;
         meter.max = 100;
         meter.value = percentage;
-        meter.setAttribute('aria-label', entry.label + ': ' + formatter.format(count) + ' devices');
+        meter.setAttribute('aria-label', entry.label + ': ' + formatter.format(count) + ' ' + unit);
         row.append(heading, meter);
         container.append(row);
     }
@@ -516,9 +516,11 @@ function renderDistribution(id, entries, total) {
 
 let iconDownloadRequest = 0;
 
-function renderDownloadTrend(daily, peak, formatter) {
-    const chart = getElement('icon-download-chart');
-    const currentValue = getElement('icon-download-chart-value');
+function renderDailyTrend(prefix, daily, unit) {
+    const formatter = new Intl.NumberFormat('en-GB');
+    const peak = Math.max(...daily.map(({ count }) => count));
+    const chart = getElement(prefix + '-chart');
+    const currentValue = getElement(prefix + '-chart-value');
     let selectedBar;
 
     function selectDay(bar, label, count) {
@@ -526,7 +528,7 @@ function renderDownloadTrend(daily, peak, formatter) {
         bar.setAttribute('aria-pressed', 'true');
         selectedBar = bar;
         const formattedCount = formatter.format(count);
-        currentValue.textContent = label + ' · ' + formattedCount + (count === 1 ? ' download' : ' downloads');
+        currentValue.textContent = label + ' · ' + formattedCount + ' ' + unit + (count === 1 ? '' : 's');
     }
 
     const columns = daily.toReversed().map(({ label, count }) => {
@@ -541,9 +543,20 @@ function renderDownloadTrend(daily, peak, formatter) {
         return column;
     });
     chart.replaceChildren(...columns);
-    getElement('icon-download-start').textContent = daily.at(-1).label;
-    getElement('icon-download-end').textContent = daily[0].label;
+    getElement(prefix + '-start').textContent = daily.at(-1).label;
+    getElement(prefix + '-end').textContent = daily[0].label;
     selectDay(columns.at(-1), daily[0].label, daily[0].count);
+}
+
+function fillDailyCounts({ days, through, daily }) {
+    const counts = new Map(daily.map(({ day, count }) => [day, count]));
+    const today = new Date(through + 'T00:00:00Z');
+    return Array.from({ length: days }, (_, index) => {
+        const date = new Date(today);
+        date.setUTCDate(date.getUTCDate() - index);
+        const day = date.toISOString().slice(0, 10);
+        return { label: day, count: counts.get(day) ?? 0 };
+    });
 }
 
 function renderDownloadCounts(containerId, rows) {
@@ -580,14 +593,7 @@ async function loadIconDownloads() {
         if (request !== iconDownloadRequest) {
             return;
         }
-        const counts = new Map(data.daily.map(({ day, count }) => [day, count]));
-        const today = new Date(data.through + 'T00:00:00Z');
-        const daily = Array.from({ length: data.days }, (_, index) => {
-            const date = new Date(today);
-            date.setUTCDate(date.getUTCDate() - index);
-            const day = date.toISOString().slice(0, 10);
-            return { label: day, count: counts.get(day) ?? 0 };
-        });
+        const daily = fillDailyCounts(data);
         const total = daily.reduce((sum, { count }) => sum + count, 0);
         const peak = daily.reduce((best, day) => day.count > best.count ? day : best);
         const formatter = new Intl.NumberFormat('en-GB');
@@ -595,7 +601,7 @@ async function loadIconDownloads() {
         getElement('icon-download-today').textContent = formatter.format(daily[0].count);
         getElement('icon-download-peak').textContent = formatter.format(peak.count);
         getElement('icon-download-peak-date').textContent = peak.count ? peak.label : '';
-        renderDownloadTrend(daily, peak.count, formatter);
+        renderDailyTrend('icon-download', daily, 'download');
         renderDownloadCounts('icon-download-daily', daily);
         renderDownloadCounts('icon-download-top', data.top.map(({ iconId, name, count }, index) => ({
             label: (index + 1) + '. ' + (name ? name + ' · #' + iconId : '#' + iconId),
@@ -610,6 +616,76 @@ async function loadIconDownloads() {
     }
 }
 
+let iconRatingRequest = 0;
+
+async function loadIconRatingStatistics() {
+    const request = ++iconRatingRequest;
+    const generation = sessionGeneration;
+    const message = getElement('icon-rating-message');
+    const results = getElement('icon-rating-results');
+    message.textContent = 'Loading icon ratings…';
+    message.hidden = false;
+    results.hidden = true;
+    try {
+        const days = getElement('icon-rating-days').value;
+        const data = await requestAdmin('statistics/icon-ratings?days=' + days);
+        if (request !== iconRatingRequest || generation !== sessionGeneration) {
+            return;
+        }
+        const countFormat = new Intl.NumberFormat('en-GB');
+        const ratingFormat = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 2 });
+        getElement('icon-rating-total').textContent = countFormat.format(data.total);
+        getElement('icon-rating-average').textContent = data.average === null ? '–' : ratingFormat.format(data.average) + ' / 5';
+        const daily = fillDailyCounts(data);
+        const periodTotal = daily.reduce((sum, { count }) => sum + count, 0);
+        getElement('icon-rating-period-total').textContent =
+            countFormat.format(periodTotal) + (periodTotal === 1 ? ' submission' : ' submissions') +
+            ' in the last ' + countFormat.format(data.days) + ' days';
+        renderDailyTrend('icon-rating', daily, 'submission');
+        renderDistribution('icon-rating-stars', data.stars.map(({ stars, count }) => ({
+            label: stars === 1 ? '1 star' : stars + ' stars',
+            count,
+        })), data.total, 'votes');
+        for (const ranking of ['mostRated', 'bestRated', 'worstRated']) {
+            const rows = data[ranking].map(({ iconId, name, average, count }) => {
+                const row = createElement('li', '', name ? name + ' · #' + iconId : '#' + iconId);
+                row.append(createElement('small', '', ratingFormat.format(average) + ' / 5 · ' +
+                    countFormat.format(count) + (count === 1 ? ' vote' : ' votes')));
+                return row;
+            });
+            getElement('icon-rating-' + ranking).replaceChildren(...rows);
+        }
+        results.hidden = false;
+        message.hidden = true;
+    } catch (error) {
+        if (request === iconRatingRequest && generation === sessionGeneration) {
+            message.textContent = error.message;
+        }
+    }
+}
+
+const statisticsTabs = [
+    { id: 'devices', load: loadStatistics },
+    { id: 'downloads', load: loadIconDownloads },
+    { id: 'ratings', load: loadIconRatingStatistics },
+];
+let activeStatisticsTab = statisticsTabs[0];
+
+function selectStatisticsTab(selected, focus = false) {
+    activeStatisticsTab = selected;
+    for (const tab of statisticsTabs) {
+        const button = getElement('statistics-' + tab.id + '-tab');
+        const active = tab === selected;
+        button.setAttribute('aria-selected', String(active));
+        button.tabIndex = active ? 0 : -1;
+        getElement('statistics-' + tab.id).hidden = !active;
+        if (active && focus) {
+            button.focus();
+        }
+    }
+    selected.load();
+}
+
 async function loadStatistics() {
     if (statisticsLoading) {
         return;
@@ -619,7 +695,7 @@ async function loadStatistics() {
     clearStatistics();
     getElement('statistics-message').textContent = 'Loading statistics…';
     getElement('statistics-message').hidden = false;
-    getElement('statistics-view').setAttribute('aria-busy', 'true');
+    getElement('statistics-devices').setAttribute('aria-busy', 'true');
     getElement('refresh').disabled = true;
     try {
         const statistics = await requestAdmin('statistics');
@@ -644,7 +720,7 @@ async function loadStatistics() {
         getElement('statistics-message').textContent = error.message;
     } finally {
         statisticsLoading = false;
-        getElement('statistics-view').removeAttribute('aria-busy');
+        getElement('statistics-devices').removeAttribute('aria-busy');
         getElement('refresh').disabled = false;
     }
 }
@@ -689,10 +765,7 @@ getElement('refresh').onclick = function refreshCurrentView() {
         'admin-audit': loadAudit,
         notifications: loadTelegramStatus,
         moderators: loadModerators,
-        statistics: () => {
-            loadStatistics();
-            loadIconDownloads();
-        },
+        statistics: () => activeStatisticsTab.load(),
         reports: loadReports,
     };
     loaders[currentView]?.();
@@ -700,9 +773,26 @@ getElement('refresh').onclick = function refreshCurrentView() {
 getElement('reports-tab').onclick = () => showView('reports');
 getElement('statistics-tab').onclick = () => {
     showView('statistics');
-    loadStatistics();
-    loadIconDownloads();
+    activeStatisticsTab.load();
 };
+for (const [index, tab] of statisticsTabs.entries()) {
+    const button = getElement('statistics-' + tab.id + '-tab');
+    button.onclick = () => selectStatisticsTab(tab);
+    button.onkeydown = (event) => {
+        const last = statisticsTabs.length - 1;
+        const targetIndex = {
+            ArrowLeft: index === 0 ? last : index - 1,
+            ArrowRight: index === last ? 0 : index + 1,
+            Home: 0,
+            End: last,
+        }[event.key];
+        if (Number.isInteger(targetIndex)) {
+            event.preventDefault();
+            selectStatisticsTab(statisticsTabs[targetIndex], true);
+        }
+    };
+}
+getElement('icon-rating-days').onchange = loadIconRatingStatistics;
 getElement('icon-download-days').onchange = loadIconDownloads;
 getElement('more').onclick = () => loadReports(false);
 getElement('search').oninput = renderReports;

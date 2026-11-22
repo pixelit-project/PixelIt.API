@@ -203,7 +203,9 @@ regression tests and dependency audit before building and smoke-testing Docker.
 ## Icon reports and administration
 
 The API includes a dark-mode admin page at `/admin/` for reviewing icon reports,
-hiding or restoring icons, and viewing aggregate device telemetry statistics.
+hiding or restoring icons, and viewing statistics in separate tabs for devices,
+icon downloads and icon ratings. See [icon rating statistics](docs/moderation.md#icon-rating-statistics)
+for the daily submission chart and rankings.
 
 The API creates the moderation tables automatically before accepting requests.
 The MySQL account needs `CREATE` and `ALTER` permissions in addition to its existing access.
@@ -247,6 +249,9 @@ Actions access** in the package settings to let that token publish images.
 ## Changelog
 
 ### Unreleased
+
+- (o0shojo0o) Split admin statistics into tabs and chart daily icon rating submissions.
+- (o0shojo0o) Show icon rating totals, star distribution and rankings in the admin statistics.
 
 ### 2.5.2 (2026-11-22)
 

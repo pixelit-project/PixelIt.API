@@ -29,6 +29,7 @@ const tables = [
     'pixel_it_telegram',
     'pixel_it_icon_ratings',
     'pixel_it_icon_downloads',
+    'pixel_it_icon_rating_submissions',
 ];
 const format = 'pixelit-api-backup-v2';
 const legacyFormat = 'pixelit-api-backup-v1';
@@ -229,10 +230,11 @@ async function* readRows(path, compressed, schema) {
     try {
         const { value: manifest } = await records.next();
         const expected = schema.map(({ name, columns }) => ({ name, columns: describeColumns(columns) }));
-        // Backups created before download tracking have every table except the new daily counts.
-        const manifestColumns = JSON.stringify(manifest?.tables);
-        const hasDownloadCounts = manifestColumns === JSON.stringify(expected);
-        if (manifest?.format !== format || (!hasDownloadCounts && manifestColumns !== JSON.stringify(expected.slice(0, -1)))) {
+        // Older backups may omit either or both of the trailing daily counter tables.
+        const tableCount = manifest?.tables?.length;
+        if (manifest?.format !== format || !Array.isArray(manifest.tables)
+            || tableCount < expected.length - 2 || tableCount > expected.length
+            || JSON.stringify(manifest.tables) !== JSON.stringify(expected.slice(0, tableCount))) {
             throw backupError('INVALID_BACKUP');
         }
         let lastIndex = 0;

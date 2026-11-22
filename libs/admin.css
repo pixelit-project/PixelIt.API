@@ -1165,8 +1165,32 @@ input::placeholder {
     text-decoration: none;
 }
 
-.icon-downloads {
-    margin-top: 32px;
+.rating-ranking {
+    margin: 0;
+    padding-inline-start: 1.5rem;
+    overflow-wrap: anywhere;
+}
+.rating-ranking li + li {
+    margin-top: 0.75rem;
+}
+.rating-ranking small {
+    display: block;
+}
+.statistics-navigation,
+.statistics-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+.statistics-navigation {
+    justify-content: space-between;
+    margin-bottom: 24px;
+}
+.statistics-tabs button[aria-selected="true"] {
+    background: #21385c;
+    border-color: #4e82d7;
+    color: #e5efff;
 }
 .icon-download-header {
     flex-wrap: wrap;

@@ -318,6 +318,23 @@ function registerModerationRoutes(
         }
     }
 
+    async function getIconRatingStatistics(req, res, next) {
+        const days = req.query.days ?? '30';
+        if (days !== '7' && days !== '30') {
+            return res.sendStatus(400);
+        }
+        try {
+            const result = await cache.getOrSet(`AdminIconRatings_${days}`, () => statisticsRepo.getAdminIconRatings(Number(days)), 60);
+            log.info('AdminIconRatings: aggregated ratings delivered; {voteCount} stored votes.', {
+                ...getRequestContext(req),
+                voteCount: result.total,
+            });
+            res.json(result);
+        } catch (error) {
+            handleRequestError(error, req, next, 'AdminIconRatings');
+        }
+    }
+
     async function decideReport(req, res, next) {
         const reportId = Number(req.params.id);
         const action = req.params.action;
@@ -690,6 +707,7 @@ function registerModerationRoutes(
     app.get('/api/admin/icons/:id', adminReadLimiter, getIconPreview);
     app.get('/api/admin/reports', adminReadLimiter, getReports);
     app.get('/api/admin/statistics/icons', adminReadLimiter, getIconDownloads);
+    app.get('/api/admin/statistics/icon-ratings', adminReadLimiter, getIconRatingStatistics);
     app.get('/api/admin/statistics', adminReadLimiter, getStatistics);
     app.post('/api/admin/logout', adminActionLimiter, logout);
     app.post('/api/admin/reports/:id/:action', adminActionLimiter, decideReport);

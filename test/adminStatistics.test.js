@@ -7,7 +7,7 @@ require.cache[loggerPath] = { loaded: true, exports: { info() {}, warn() {}, err
 process.env.ADMIN_PASSWORD = 'admin-statistics-password';
 process.env.ADMIN_ORIGIN = 'https://admin.example.test';
 process.env.TELEMETRY_USER_CHECK = 'true';
-process.env.API_ADMIN_READ_LIMIT_MAX = '2';
+process.env.API_ADMIN_READ_LIMIT_MAX = '3';
 const app = express();
 app.use(express.json());
 let loads = 0;
@@ -16,7 +16,7 @@ require('../routes/moderation')(
     {},
     {
         async getOrSet(key, load, lifetime) {
-            assert.ok(['AdminStatistics', 'AdminIconDownloads_7'].includes(key));
+            assert.ok(['AdminStatistics', 'AdminIconDownloads_7', 'AdminIconRatings_7'].includes(key));
             assert.equal(lifetime, 60);
             return load();
         },
@@ -25,6 +25,10 @@ require('../routes/moderation')(
         async getIconDownloads(days) {
             assert.equal(days, 7);
             return { days, through: '2026-11-22', daily: [], top: [] };
+        },
+        async getAdminIconRatings(days) {
+            assert.equal(days, 7);
+            return { total: 0, average: null, stars: [], mostRated: [], bestRated: [], worstRated: [] };
         },
         async getAdminStatistics() {
             loads++;
@@ -51,6 +55,7 @@ async function request(path, body, cookie) {
 test('admin statistics require a session, use bounded caching and the shared admin read limit', async () => {
     assert.equal((await request('/api/admin/statistics')).status, 401);
     assert.equal((await request('/api/admin/statistics/icons')).status, 401);
+    assert.equal((await request('/api/admin/statistics/icon-ratings')).status, 401);
     assert.equal(loads, 0);
     const login = await request('/api/admin/login', { password: process.env.ADMIN_PASSWORD });
     assert.equal(login.status, 204);
@@ -61,6 +66,11 @@ test('admin statistics require a session, use bounded caching and the shared adm
     const downloads = await request('/api/admin/statistics/icons?days=7', undefined, cookie);
     assert.equal(downloads.status, 200);
     assert.equal((await downloads.json()).days, 7);
-    assert.equal((await request('/api/admin/statistics', undefined, cookie)).status, 429);
+    const ratings = await request('/api/admin/statistics/icon-ratings?days=7', undefined, cookie);
+    assert.equal(ratings.status, 200);
+    assert.deepEqual(await ratings.json(), {
+        total: 0, average: null, stars: [], mostRated: [], bestRated: [], worstRated: [],
+    });
+    assert.equal((await request('/api/admin/statistics/icon-ratings', undefined, cookie)).status, 429);
     assert.equal(loads, 1);
 });

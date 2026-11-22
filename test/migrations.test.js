@@ -33,9 +33,9 @@ require.cache[mysql] = {
 const migrate = require('../libs/migrations');
 test('migrations create tables, track checksums and skip already applied DDL', async () => {
     await migrate();
-    assert.equal(applied.size, 8);
+    assert.equal(applied.size, 9);
     assert.equal(ended, 1);
-    for (const table of ['reports', 'icon_ratings', 'icon_downloads', 'user', 'bitmap', 'hitcount', 'telemetry']) {
+    for (const table of ['reports', 'icon_ratings', 'icon_downloads', 'icon_rating_submissions', 'user', 'bitmap', 'hitcount', 'telemetry']) {
         assert.ok(queries.some(sql => sql.includes('CREATE TABLE IF NOT EXISTS pixel_it_' + table)));
     }
     assert.ok(queries.some((sql) => sql.includes('ALTER TABLE pixel_it_reports') && sql.includes("'blocked'")));
@@ -53,7 +53,7 @@ test('partial DDL failure is retryable and is never marked complete', async () =
     assert.ok(queries.some((sql) => sql.includes('RELEASE_LOCK')));
     failDDL = false;
     await migrate();
-    assert.equal(applied.size, 8);
+    assert.equal(applied.size, 9);
 });
 test('lock timeout and modified migration fail closed and close connections', async () => {
     const previous = ended;
