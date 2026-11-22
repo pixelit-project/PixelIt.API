@@ -248,6 +248,9 @@ Actions access** in the package settings to let that token publish images.
 
 ### Unreleased
 
+- (o0shojo0o) Add a download trend chart and larger summary figures to the admin statistics.
+- (o0shojo0o) Show the newest day first in the icon download statistics.
+
 ### 2.5.0 (2026-11-22)
 
 - (o0shojo0o) Track successful icon downloads by day and show the most downloaded icons in admin statistics.

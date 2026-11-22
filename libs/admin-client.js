@@ -516,6 +516,36 @@ function renderDistribution(id, entries, total) {
 
 let iconDownloadRequest = 0;
 
+function renderDownloadTrend(daily, peak, formatter) {
+    const chart = getElement('icon-download-chart');
+    const currentValue = getElement('icon-download-chart-value');
+    let selectedBar;
+
+    function selectDay(bar, label, count) {
+        selectedBar?.setAttribute('aria-pressed', 'false');
+        bar.setAttribute('aria-pressed', 'true');
+        selectedBar = bar;
+        const formattedCount = formatter.format(count);
+        currentValue.textContent = label + ' · ' + formattedCount + (count === 1 ? ' download' : ' downloads');
+    }
+
+    const columns = daily.toReversed().map(({ label, count }) => {
+        const column = createElement('button', 'icon-trend-column');
+        column.type = 'button';
+        column.setAttribute('aria-label', label + ' · ' + formatter.format(count));
+        column.setAttribute('aria-pressed', 'false');
+        const bar = createElement('span', 'icon-trend-bar');
+        bar.style.height = (peak ? count * 100 / peak : 0) + '%';
+        column.append(bar);
+        column.onclick = () => selectDay(column, label, count);
+        return column;
+    });
+    chart.replaceChildren(...columns);
+    getElement('icon-download-start').textContent = daily.at(-1).label;
+    getElement('icon-download-end').textContent = daily[0].label;
+    selectDay(columns.at(-1), daily[0].label, daily[0].count);
+}
+
 function renderDownloadCounts(containerId, rows) {
     const container = getElement(containerId);
     if (!rows.length) {
@@ -541,9 +571,10 @@ async function loadIconDownloads() {
     const request = ++iconDownloadRequest;
     const days = getElement('icon-download-days').value;
     const message = getElement('icon-download-message');
+    const results = getElement('icon-download-results');
     message.textContent = 'Loading icon downloads…';
-    getElement('icon-download-daily').replaceChildren();
-    getElement('icon-download-top').replaceChildren();
+    message.hidden = false;
+    results.hidden = true;
     try {
         const data = await requestAdmin('statistics/icons?days=' + days);
         if (request !== iconDownloadRequest) {
@@ -553,17 +584,25 @@ async function loadIconDownloads() {
         const today = new Date(data.through + 'T00:00:00Z');
         const daily = Array.from({ length: data.days }, (_, index) => {
             const date = new Date(today);
-            date.setUTCDate(date.getUTCDate() - data.days + index + 1);
+            date.setUTCDate(date.getUTCDate() - index);
             const day = date.toISOString().slice(0, 10);
             return { label: day, count: counts.get(day) ?? 0 };
         });
         const total = daily.reduce((sum, { count }) => sum + count, 0);
-        message.textContent = new Intl.NumberFormat('en-GB').format(total) + ' downloads';
+        const peak = daily.reduce((best, day) => day.count > best.count ? day : best);
+        const formatter = new Intl.NumberFormat('en-GB');
+        getElement('icon-download-total').textContent = formatter.format(total);
+        getElement('icon-download-today').textContent = formatter.format(daily[0].count);
+        getElement('icon-download-peak').textContent = formatter.format(peak.count);
+        getElement('icon-download-peak-date').textContent = peak.count ? peak.label : '';
+        renderDownloadTrend(daily, peak.count, formatter);
         renderDownloadCounts('icon-download-daily', daily);
-        renderDownloadCounts('icon-download-top', data.top.map(({ iconId, name, count }) => ({
-            label: name ? name + ' · #' + iconId : '#' + iconId,
+        renderDownloadCounts('icon-download-top', data.top.map(({ iconId, name, count }, index) => ({
+            label: (index + 1) + '. ' + (name ? name + ' · #' + iconId : '#' + iconId),
             count,
         })));
+        results.hidden = false;
+        message.hidden = true;
     } catch (error) {
         if (request === iconDownloadRequest) {
             message.textContent = error.message;

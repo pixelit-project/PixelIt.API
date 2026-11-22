@@ -154,7 +154,8 @@ Report text is rendered as plain text.
 ## Icon download statistics
 
 Open **Statistics → Icon downloads** for daily counts and the top 20 icons over
-the last 7 or 30 UTC calendar days, including today. The authenticated endpoint
+the last 7 or 30 UTC calendar days, including today. Select a bar in the API
+download trend chart to inspect its daily count. The authenticated endpoint
 `GET /api/admin/statistics/icons?days=7` shares the admin read limit. Aggregates
 are cached for 60 seconds.
 

@@ -241,26 +241,54 @@
                         </span>
                     </footer>
                     <section class="telemetry-card icon-downloads" aria-labelledby="icon-download-heading">
-                        <div class="queue-heading">
+                        <header class="icon-download-header">
                             <div>
                                 <h2 id="icon-download-heading">Icon downloads</h2>
-                                <p>Successful downloads by icon ID. Dates use UTC.</p>
+                                <p>Successful API downloads by icon ID · UTC</p>
                             </div>
                             <select id="icon-download-days" aria-label="Icon download period">
                                 <option value="7">Last 7 days</option>
                                 <option value="30" selected>Last 30 days</option>
                             </select>
-                        </div>
+                        </header>
                         <p id="icon-download-message" role="status"></p>
-                        <div class="telemetry-grid">
-                            <article>
-                                <h3>Downloads by day</h3>
-                                <div id="icon-download-daily"></div>
-                            </article>
-                            <article>
-                                <h3>Top 20 icons</h3>
-                                <div id="icon-download-top"></div>
-                            </article>
+                        <div id="icon-download-results" hidden>
+                            <dl class="icon-download-summary">
+                                <div>
+                                    <dt>Total downloads</dt>
+                                    <dd id="icon-download-total"></dd>
+                                </div>
+                                <div>
+                                    <dt>Today (UTC)</dt>
+                                    <dd id="icon-download-today"></dd>
+                                </div>
+                                <div>
+                                    <dt>Peak day</dt>
+                                    <dd id="icon-download-peak"></dd>
+                                    <dd id="icon-download-peak-date" class="icon-download-peak-date"></dd>
+                                </div>
+                            </dl>
+                            <figure class="icon-download-panel icon-download-trend">
+                                <figcaption>
+                                    <h3>API download trend</h3>
+                                    <p id="icon-download-chart-value" aria-live="polite"></p>
+                                </figcaption>
+                                <div id="icon-download-chart" class="icon-download-chart" role="group" aria-label="Daily download totals"></div>
+                                <div class="icon-download-axis" aria-hidden="true">
+                                    <span id="icon-download-start"></span>
+                                    <span id="icon-download-end"></span>
+                                </div>
+                            </figure>
+                            <div class="icon-download-details">
+                                <article class="icon-download-panel">
+                                    <h3>Downloads by day</h3>
+                                    <div id="icon-download-daily"></div>
+                                </article>
+                                <article class="icon-download-panel">
+                                    <h3>Top 20 icons</h3>
+                                    <div id="icon-download-top"></div>
+                                </article>
+                            </div>
                         </div>
                     </section>
                 </div>
