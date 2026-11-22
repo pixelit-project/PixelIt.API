@@ -250,6 +250,8 @@ Actions access** in the package settings to let that token publish images.
 
 ### Unreleased
 
+### 2.5.3 (2026-11-22)
+
 - (o0shojo0o) Split admin statistics into tabs and chart daily icon rating submissions.
 - (o0shojo0o) Show icon rating totals, star distribution and rankings in the admin statistics.
 
