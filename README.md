@@ -248,6 +248,8 @@ Actions access** in the package settings to let that token publish images.
 
 ### Unreleased
 
+### 2.5.0 (2026-11-22)
+
 - (o0shojo0o) Track successful icon downloads by day and show the most downloaded icons in admin statistics.
 - (o0shojo0o) Add administrator-only compressed database backup and restore for server migrations.
 - (o0shojo0o) Show report totals across all pages and automatically play animated previews in the admin panel.
